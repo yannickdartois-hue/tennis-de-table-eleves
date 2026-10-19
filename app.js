@@ -54,7 +54,7 @@ async function enregistrer(){
   const g=ROOT.groupes[ACTIF]||(ROOT.groupes[ACTIF]={});
   const iv=crypto.getRandomValues(new Uint8Array(12));
   const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},CLEF,new TextEncoder().encode(JSON.stringify(S)));
-  Object.assign(g,{classe:S.classe,noms:S.eleves.map(e=>e.nom.split(/\s+/)[0]),iv:b64(iv),data:b64(ct),vu:Date.now()});delete g.clair;
+  Object.assign(g,{classe:S.classe,noms:S.eleves.map(e=>e.nom.split(/\s+/)[0]),iv:b64(iv),data:b64(ct),vu:Date.now(),nonEnv:nonEnvoyees()});delete g.clair;
   ecrireRoot();
 }
 async function ouvrir(id,code){
@@ -120,7 +120,11 @@ function rec(id,n,creer=true){
   if(!r&&creer){r=S.d[id][n]={date:null,axes:axesDefaut(id,n),chg:[],exos:[],val:{},rq:'',etoile:null,grille:null}}
   return r;
 }
-function touche(r){if(!r.date)r.date=today()}
+const ICOFAM={AFL1:'🎯 ',AFL2:'🧠 ',AFL3:'🤝 '};
+function touche(r){if(!r.date)r.date=today();modif()}
+// Séance modifiée depuis le dernier envoi (QR ou en ligne) ?
+function modif(n){if(!S)return;S.mod=S.mod||{};S.mod[n==null?S.seance:n]=Date.now()}
+function nonEnvoyees(){if(!S||!S.mod)return [];return Object.keys(S.mod).map(Number).filter(n=>{const ev=(S.envoi||{})[n]||{};return S.mod[n]>Math.max(ev.qr||0,ev.fichier||0)&&fichiers(n).length}).sort((a,b)=>a-b)}
 function seancesDe(id){return Object.keys(S.d[id]||{}).map(Number).sort((a,b)=>a-b)}
 function axesDefaut(id,n){
   const prev=seancesDe(id).filter(x=>x<n).reverse();
@@ -144,7 +148,7 @@ function vChoix(){
   const parC={};G.forEach(([id,g])=>(parC[g.classe||'Sans classe']=parC[g.classe||'Sans classe']||[]).push([id,g]));
   const C=Object.keys(ROOT.classes).sort();
   return `<h2>Qui utilise la tablette ?</h2><p class="small muted">Chaque groupe ouvre son carnet avec son code secret.</p>
-  ${G.length?Object.entries(parC).map(([c,L])=>`<section class="carte"><h3>${esc(c)}</h3><div class="choix">${L.map(([id,g])=>`<button type="button" class="bt grp" data-act="choisir" data-v="${id}">🔒 ${nom(g)}<small>${g.clair?'à protéger par un code':'code secret du groupe'}</small></button>`).join('')}</div></section>`).join(''):'<p class="muted">Aucun groupe sur cette tablette.</p>'}
+  ${G.length?Object.entries(parC).map(([c,L])=>`<section class="carte"><h3>${esc(c)}</h3><div class="choix">${L.map(([id,g])=>{const ne=g.nonEnv&&g.nonEnv.length;return `<button type="button" class="bt grp${ne?' nonenv':''}" data-act="choisir" data-v="${id}">🔒 ${nom(g)}<small>${ne?'⚠ Séance '+g.nonEnv.join(', ')+' non envoyée':g.clair?'à protéger par un code':'code secret du groupe'}</small></button>`}).join('')}</div></section>`).join(''):'<p class="muted">Aucun groupe sur cette tablette.</p>'}
   <section class="carte"><h3>Nouveau groupe</h3>
     ${C.length?`<p class="small muted">Classes déjà enregistrées sur la tablette :</p><div class="rangee">${C.map(c=>`<button type="button" class="bt" data-act="nouveau" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div><p class="small muted" style="margin-top:10px">Autre classe :</p>`:''}
     <button type="button" class="bt orange" data-act="nouveauqr">Scanner le QR de la classe</button></section>`;
@@ -160,15 +164,17 @@ function rendre(){
   $('#seances').innerHTML=g?`<span class="lab">Séance</span><div class="strip">${[...Array(NB_SEANCES)].map((_,i)=>`<button type="button" data-act="seance" data-v="${i+1}" class="${S.seance===i+1?'ici':''} ${faites.has(i+1)?'fait':''}" aria-label="Séance ${i+1}">${i+1}</button>`).join('')}</div>`:'';
   $('#seances').hidden=!g;
   // qui saisit
-  const parEleve=['seance','etoile','poule'].includes(S.tab)&&S.eleves.length>1;
+  const parEleve=['seance','etoile','poule','progres'].includes(S.tab)&&S.eleves.length>1;
   $('#qui').hidden=!parEleve;
   $('#qui').innerHTML=parEleve?S.eleves.map((e,i)=>`<button type="button" data-act="qui" data-v="${i}" class="${S.cur===i?'ici':''}">${esc(e.nom.split(/\s+/)[0]||e.nom)}</button>`).join(''):'';
   // onglets
-  const O=[['seance','Séance','Exercices'],['etoile','Étoile','Je me situe'],['poule','Poule','Matchs'],['regles','Règles','et gestes'],['envoi','Envoyer','Ma séance']];
-  $('#onglets').innerHTML=O.map(o=>`<button type="button" data-act="tab" data-v="${o[0]}" class="${S.tab===o[0]?'ici':''}"><b>${o[1]}</b>${o[2]}</button>`).join('');
+  const O=[['seance','🏓','Séance'],['etoile','⭐','Étoile'],['poule','🏆','Poule'],['progres','📈','Progrès'],['regles','📖','Règles'],['envoi','📤','Envoyer']];
+  const ne2=nonEnvoyees().length;
+  $('#onglets').innerHTML=O.map(o=>`<button type="button" data-act="tab" data-v="${o[0]}" class="${S.tab===o[0]?'ici':''}${o[0]==='envoi'&&ne2?' alerte':''}"><i aria-hidden="true">${o[1]}</i><b>${o[2]}</b></button>`).join('');
   $('#onglets').hidden=!g;
-  const V={regles:vRegles,groupe:vGroupe,seance:vSeance,etoile:vEtoile,poule:vPoule,envoi:vEnvoi};
-  $('#main').innerHTML=(V[S.tab]||vSeance)();
+  const V={progres:()=>window.vProgres?vProgres():'',regles:vRegles,groupe:vGroupe,seance:vSeance,etoile:vEtoile,poule:vPoule,envoi:vEnvoi};
+  const ne=nonEnvoyees();
+  $('#main').innerHTML=(ne.length&&S.tab!=='envoi'&&S.tab!=='groupe'?`<button type="button" class="nonenvoye" data-act="tab" data-v="envoi">⚠ Séance ${ne.join(', ')} non envoyée au professeur — touche ici pour l’envoyer</button>`:'')+(V[S.tab]||vSeance)();
 }
 
 /* ----- Groupe ----- */
@@ -223,7 +229,7 @@ function choixCriteres(e,i,v){
 // Le niveau compte vraiment quand un camarade (l'observateur) l'a vu et le confirme.
 function verifPar(E,i,x){
   const autres=S.eleves.filter(e=>e.id!==E.id).map(e=>e.nom);
-  return `<label class="ch">Vérifié par l’observateur</label><div class="verif">${autres.map(n=>`<button type="button" data-act="verif" data-i="${i}" data-v="${esc(n)}" class="${x.obs===n?'on':''}">${x.obs===n?'✓ ':''}${esc(n.split(/\s+/)[0])}</button>`).join('')}<button type="button" data-act="verif" data-i="${i}" data-v="Professeur" class="${x.obs==='Professeur'?'on':''}">${x.obs==='Professeur'?'✓ ':''}Prof</button></div>
+  return `<label class="ch">👀 Vérifié par l’observateur</label><div class="verif">${autres.map(n=>`<button type="button" data-act="verif" data-i="${i}" data-v="${esc(n)}" class="${x.obs===n?'on':''}">${x.obs===n?'✓ ':''}${esc(n.split(/\s+/)[0])}</button>`).join('')}<button type="button" data-act="verif" data-i="${i}" data-v="Professeur" class="${x.obs==='Professeur'?'on':''}">${x.obs==='Professeur'?'✓ ':''}Prof</button></div>
   ${x.obs?'':'<p class="small muted" style="margin:4px 0 0">Pas encore vérifié : l’observateur regarde l’exercice et confirme le niveau.</p>'}`;
 }
 function puces(nb,i){const l=nb===3?['●','●●','●●●']:nb===2?['●●','●●●']:['●●●'];return l[i]||'●●●'}
@@ -244,7 +250,7 @@ function voirAussi(n){
 }
 function fiche(n){
   const x=exInfo(n);if(!x)return '';const e=x.e;
-  return illustration(IMG_EX.has(n)?'img/ex'+n+'.jpg':'',VID.ex[n],'Exercice '+n+' : '+e.t,PRINCIPE.ex[n])+voirAussi(n)+`<details class="fiche"><summary>Voir l’exercice ${esc(e.n)} : ${esc(e.t)}</summary><dl class="f">
+  return illustration(IMG_EX.has(n)?'img/ex'+n+'.jpg':'',VID.ex[n],'Exercice '+n+' : '+e.t,PRINCIPE.ex[n])+voirAussi(n)+(window.outilsFiche?outilsFiche('ex',n):'')+`<details class="fiche"><summary>Voir l’exercice ${esc(e.n)} : ${esc(e.t)}</summary><dl class="f">
     <dt>Consigne</dt><dd>${esc(e.c)}</dd>
     ${e.j?`<dt>Joueur</dt><dd>${esc(e.j)}</dd>`:''}
     ${e.p?`<dt>Partenaires</dt><dd>${esc(e.p)}</dd>`:''}
@@ -267,12 +273,12 @@ function vSeance(){
     h+=`<section class="carte axe ${famCl(a)}"><h3>Axe ${sl+1}</h3>
       <select data-ch="axe" data-slot="${sl}" aria-label="Axe ${sl+1}">${optAxes(k,r.axes[1-sl],E.id,r.disp)}</select>`;
     if(a){
-      h+=`<p style="margin:8px 0 0"><span class="fam ${famCl(a)}">${a.afl}</span> ${q?`<span class="ok">✓ match à thème validé${q!==n?' (séance '+q+')':''}</span>`:'<span class="small muted">match à thème pas encore validé</span>'}</p>`;
-      h+=`<details class="fiche"><summary>Le match à thème de cet axe</summary>${a.th.map(t=>{const T=theme(t);return `<dl class="f"><dt>Thème ${t} · ${esc(T.t)}</dt><dd>${illustration(IMG_MT.has(t)?'img/mt'+t+'.jpg':'',VID.mt[t],'Match à thème '+t,PRINCIPE.mt[t])}</dd><dt>Règle complète</dt><dd>${esc(T.match)}</dd><dt>Je me reconnais si…</dt><dd><ul>${T.prob.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></dd></dl>`}).join('')}</details>`;
+      h+=`<p style="margin:8px 0 0"><span class="fam ${famCl(a)}">${ICOFAM[a.afl]||''}${a.afl}</span> ${q?`<span class="ok">✓ match à thème validé${q!==n?' (séance '+q+')':''}</span>`:'<span class="small muted">match à thème pas encore validé</span>'}</p>`;
+      h+=`<details class="fiche"><summary>Le match à thème de cet axe</summary>${a.th.map(t=>{const T=theme(t);return `<dl class="f"><dt>Thème ${t} · ${esc(T.t)}</dt><dd>${illustration(IMG_MT.has(t)?'img/mt'+t+'.jpg':'',VID.mt[t],'Match à thème '+t,PRINCIPE.mt[t])}${window.outilsFiche?outilsFiche('mt',t):''}</dd><dt>Règle complète</dt><dd>${esc(T.match)}</dd><dt>Je me reconnais si…</dt><dd><ul>${T.prob.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></dd></dl>`}).join('')}</details>`;
       r.exos.forEach((x,i)=>{if(x.slot!==sl)return;
         const solo=r.exos.filter(y=>y.slot===sl).length===1;
         h+=`<div class="exo"><label class="ch">Exercice choisi</label><select data-ch="ex" data-i="${i}" aria-label="Numéro d’exercice">${optExos(k,x.ex)}</select>
-          ${x.ex?fiche(x.ex)+`<label class="ch" style="margin-top:12px">J’ai atteint… <span class="small muted" style="font-weight:400">(touche ta ligne)</span></label>${choixCriteres(exInfo(x.ex).e,i,x.niv)}${x.niv?verifPar(E,i,x):''}
+          ${x.ex?fiche(x.ex)+`<label class="ch" style="margin-top:12px">J’ai atteint… <span class="small muted" style="font-weight:400">(touche ta ligne)</span></label>${choixCriteres(exInfo(x.ex).e,i,x.niv)}${x.niv?verifPar(E,i,x):''}${x.niv&&window.prochainPas?prochainPas(E,k,sl,x,i):''}
           <label class="ch">Remarque</label><input type="text" data-ch="exrq" data-i="${i}" value="${esc(x.rq)}" placeholder="ex. 6 sur 10, revers à revoir">`:''}
           ${solo?'':`<div style="margin-top:8px"><button class="bt mini" type="button" data-act="delex" data-i="${i}">Retirer cet exercice</button></div>`}</div>`;
       });
@@ -312,13 +318,14 @@ function vEtoile(){
     <p class="small muted">Pendant le match, le coach compte comment son joueur gagne ses points.</p>
     <div class="compteurs">${GA.obs.map(([c,l])=>{const k='c'+c;return `<div title="${esc(l)}"><span class="code">${c}</span><b>${gr[k]||0}</b><button type="button" data-act="cpt" data-k="${k}" data-v="1" aria-label="ajouter un ${c}">+</button><button type="button" data-act="cpt" data-k="${k}" data-v="-1" aria-label="enlever un ${c}">−</button></div>`}).join('')}</div>
     <ul class="small">${GA.obs.map(([c,l])=>`<li><b>${c}</b> : ${esc(l)}</li>`).join('')}</ul>
+    ${window.codesDuJour?codesDuJour(E,n):''}
     <p><b>Score observé : ${score}</b> <span class="small muted">(1 × les 1 + 2 × les 2 + 3 × les 3)</span></p>
     <label class="ch" for="projet">Je prévois de gagner en…</label><input id="projet" type="text" data-ch="projet" value="${esc(gr.projet)}" placeholder="ex. service sur le revers et smash dès que possible">
   </details>`;
   h+=`<section class="carte"><h3>2 · Je me situe sur mon étoile</h3><p class="small muted">Touche la pastille qui te décrit sur chaque axe. On se situe avec les faits notés, pas avec l’impression.</p>
     <div class="radar">${radar(e,ref)}</div>
     ${ref?`<p class="small muted" style="text-align:center">Pointillés : ta 1re étoile (séance ${first.s}).</p>`:''}
-    <div class="grille-etoile">${GA.axes.map(a=>`<div class="ax-row carte axe ${famCl(a)}" style="margin:0"><b>${esc(a.n)}</b> <span class="fam ${famCl(a)}">${a.afl}</span>
+    <div class="grille-etoile">${GA.axes.map(a=>`<div class="ax-row carte axe ${famCl(a)}" style="margin:0"><b>${esc(a.n)}</b> <span class="fam ${famCl(a)}">${ICOFAM[a.afl]||''}${a.afl}</span>
       ${pastilles('et',`data-k="${a.k}"`,e[a.k]||0)}<div class="desc">${e[a.k]?esc(a.d[e[a.k]-1]):''}</div></div>`).join('')}</div></section>`;
   const set=GA.axes.filter(a=>e[a.k]);
   h+=`<section class="carte"><h3>Mes pistes de travail</h3>`;
@@ -348,7 +355,7 @@ function vPoule(){
     return `<div class="match"><div class="tete"><b>${i+1}. ${esc(A)} – ${esc(B)}</b><span id="mb-${i}">${badge(P,m)}</span></div>
       <div class="rangee mq"><button type="button" class="bt mini orange" data-act="marque" data-m="${i}">🏓 Tableau de marque</button><button type="button" class="bt mini" data-act="projets" data-m="${i}">Projets${m.pj&&(m.pj[0]!=null||m.pj[1]!=null)?' ✓':''}</button></div>
       ${m.pj&&(m.pj[0]!=null||m.pj[1]!=null)?`<div class="small">${[0,1].filter(j=>m.pj[j]!=null).map(j=>`${esc((j?B:A).split(/\s+/)[0])} : ${esc(TTL.PROJETS[m.pj[j]])}${m.pjok&&m.pjok[j]!=null?(m.pjok[j]?' ✓ réussi':' ✗ non réussi'):''}`).join(' · ')}</div>`:''}
-      <div class="small muted">${P.arbDisp?'Arbitre : '+esc(P.arbDisp)+' (dispensé)':m.arb!=null?'Arbitre : '+esc(P.joueurs[m.arb]):'Pas d’arbitre libre : les joueurs comptent'}</div>
+      <div class="small muted">${P.arbDisp?'🧑‍⚖️ Arbitre : '+esc(P.arbDisp)+' (dispensé)':m.arb!=null?'🧑‍⚖️ Arbitre-coach : '+esc(P.joueurs[m.arb]):'Pas d’arbitre libre : les joueurs comptent'}</div>
       <div class="sets">${[...Array(need)].map((_,s)=>{const v=(m.m||[])[s]||['',''];return `<span class="set"><input inputmode="numeric" pattern="[0-9]*" maxlength="2" data-ch="set" data-m="${i}" data-s="${s}" data-c="0" value="${esc(v[0])}" aria-label="Manche ${s+1}, points de ${esc(A)}">–<input inputmode="numeric" pattern="[0-9]*" maxlength="2" data-ch="set" data-m="${i}" data-s="${s}" data-c="1" value="${esc(v[1])}" aria-label="Manche ${s+1}, points de ${esc(B)}"></span>`}).join('')}
       <select data-ch="forf" data-m="${i}" style="width:auto;min-height:44px" aria-label="Forfait"><option value="">Joué</option><option value="a"${m.f==='a'?' selected':''}>Forfait ${esc(A)}</option><option value="b"${m.f==='b'?' selected':''}>Forfait ${esc(B)}</option></select></div></div>`}).join('')}</section>`;
   h+=`<section class="carte"><h3>Classement</h3><div id="pcl">${htmlClassement(P)}</div>
@@ -423,7 +430,7 @@ function exportEleve(E,n){
     axes:r.axes.filter(Boolean).map(k=>{const a=axe(k);return {axe:k,nom:a.n,afl:a.afl,valideAujourdhui:!!r.val[k],valideDepuisSeance:valideQuand(E.id,k)}}),
     changementsAxe:r.chg.map(c=>({de:c.de,vers:c.vers,motif:c.motif,quand:c.ts})),
     exercices:r.exos.filter(x=>x.ex).map(x=>{const i=exInfo(x.ex);return {axe:r.axes[x.slot],exercice:x.ex,theme:i?i.t.n:null,titre:i?i.e.t:'',niveau:x.niv||null,niveauLibelle:x.niv?GA.deg[x.niv-1]:'',critereAtteint:x.niv&&i?critereDe(i.e,x.niv):'',verifiePar:x.niv&&x.obs?x.obs:'',remarque:x.rq||''}}),
-    bilan:r.rq||'',dispense:!!r.disp,
+    bilan:r.rq||'',dispense:!!r.disp,groupe:S.eleves.map(e=>e.nom),
     etoile:r.etoile&&Object.keys(r.etoile).length?GA.axes.map(a=>({axe:a.k,nom:a.n,degre:r.etoile[a.k]||null,libelle:r.etoile[a.k]?GA.deg[r.etoile[a.k]-1]:''})):null,
     grilleCoach:r.grille?Object.assign({scoreObserve:r.grille.c1+2*r.grille.c2+3*r.grille.c3},r.grille):null,
     poule:pi>=0?Object.assign(TTL.resumePoule(P,pi),{brut:pouleBrute(P)}):null,
@@ -431,7 +438,7 @@ function exportEleve(E,n){
     tours:tours.length?tours:undefined};
 }
 // La poule complète (tous les matchs, manche par manche) : l'outil prof reconstruit le tableau et le classement.
-function pouleBrute(P){return {num:P.num,fmt:P.fmt,arbDisp:P.arbDisp||'',joueurs:P.joueurs.slice(),matchs:P.matchs.map(m=>({a:m.a,b:m.b,arb:m.arb,f:m.f||null,pj:m.pj||null,pjok:m.pjok||null,m:(m.m||[]).filter(x=>x&&x[0]!==''&&x[1]!==''&&x[0]!=null&&x[1]!=null).map(x=>[+x[0],+x[1]])}))}}
+function pouleBrute(P){return {num:P.num,fmt:P.fmt,arbDisp:P.arbDisp||'',joueurs:P.joueurs.slice(),matchs:P.matchs.map(m=>({a:m.a,b:m.b,arb:m.arb,f:m.f||null,pj:m.pj||null,pjok:m.pjok||null,co:m.codes||null,m:(m.m||[]).filter(x=>x&&x[0]!==''&&x[1]!==''&&x[0]!=null&&x[1]!=null).map(x=>[+x[0],+x[1]])}))}}
 function fichiers(n){
   const L=[];
   S.eleves.forEach(E=>{const o=exportEleve(E,n);if(o)L.push({nom:TTL.nomFichier(S.classe,E.nom,n),o})});
@@ -485,7 +492,7 @@ async function montrerTransfert(i){
 }
 function recevoirClasse(o){
   if(o.t!=='C')throw new Error('Ce n’est pas le QR de la classe.');
-  const cfg={classe:o.c,eleves:o.l||[],lien:o.u||''};
+  const cfg={classe:o.c,eleves:o.l||[],lien:o.u||'',k:o.k||''};
   ROOT.classes[o.c]=cfg;
   ecrireRoot(); // les autres groupes de la classe recevront la nouvelle liste à leur ouverture
   if(!S||(S.eleves.length&&S.classe&&S.classe!==o.c)){setTimeout(()=>{if(S)verrouiller().then(rendre);demanderCode('Nouveau groupe · '+o.c,'Choisissez un code secret de 4 chiffres. Retenez-le : il sera demandé à chaque cours.',c=>nouveauGroupe(o.c,c),true)},300);return 'Classe '+o.c+' enregistrée.'}
@@ -532,12 +539,12 @@ function peindreMarque(){
   let h=`<div class="mq-haut"><b>Match ${MQ.i+1}${arb?' · arbitre '+esc(arb.split(/\s+/)[0]):''}</b><span>Manches ${e.ma}-${e.mb} · ${need===1?'1 manche':need+' manches gagnantes'}</span><button type="button" class="bt mini" data-act="mqfermer">Fermer</button></div>`;
   if(e.fini){
     const pj=m.pj||[null,null],ok=m.pjok||[null,null];
-    h+=`<div class="mq-fin"><h2>${esc(noms[e.w])} gagne ${e.w==='a'?e.ma+'-'+e.mb:e.mb+'-'+e.ma}</h2><p>${esc(TTL.texteScore(m,P.fmt,e.w))}</p>
+    h+=`<div class="mq-fin">${window.barreCodes&&MQ.code?barreCodes(m,noms):''}<h2>${esc(noms[e.w])} gagne ${e.w==='a'?e.ma+'-'+e.mb:e.mb+'-'+e.ma}</h2><p>${esc(TTL.texteScore(m,P.fmt,e.w))}</p>
       ${[0,1].filter(j=>pj[j]!=null).map(j=>`<div class="carte"><b>${esc(j?noms.b:noms.a)}</b> · ${esc(TTL.PROJETS[pj[j]])}<div class="rangee" style="margin-top:8px;justify-content:center"><span>Projet réalisé ?</span><button type="button" class="bt${ok[j]===true?' noir':''}" data-act="pjok" data-m="${MQ.i}" data-j="${j}" data-v="1">Oui</button><button type="button" class="bt${ok[j]===false?' noir':''}" data-act="pjok" data-m="${MQ.i}" data-j="${j}" data-v="0">Non</button></div></div>`).join('')}
       <button type="button" class="bt orange" data-act="mqfermer" style="margin-top:12px">Terminé</button></div>`;
   }else if(!m.live){
     const prec=m.premier0;// qui a servi en premier à la manche précédente
-    h+=`<div class="mq-fin"><h2>Manche ${mset+1}</h2>${mset===0&&!(m.pj&&(m.pj[0]!=null||m.pj[1]!=null))?`<p><button type="button" class="bt" data-act="projets" data-m="${MQ.i}">Annoncer les projets de jeu</button></p>`:''}
+    h+=`<div class="mq-fin">${window.barreCodes&&MQ.code?barreCodes(m,noms):''}<h2>Manche ${mset+1}</h2>${mset===0&&!(m.pj&&(m.pj[0]!=null||m.pj[1]!=null))?`<p><button type="button" class="bt" data-act="projets" data-m="${MQ.i}">Annoncer les projets de jeu</button></p>`:''}
       <p>Qui sert en premier ?</p><div class="rangee" style="justify-content:center">${['a','b'].map(c=>`<button type="button" class="bt${prec&&prec!==c?' orange':''}" data-act="mqservice" data-v="${c}">${esc(noms[c])}</button>`).join('')}</div>
       ${prec?'<p class="small muted">À la manche suivante, l’autre joueur sert en premier.</p>':''}</div>`;
   }else{
@@ -545,13 +552,15 @@ function peindreMarque(){
     h+=`<div class="mq-jeu">${cotes.map(c=>`<div class="mq-cote${srv===c?' sert':''}">
         <button type="button" class="mq-plus" data-act="mqpoint" data-v="${c}" aria-label="Point pour ${esc(noms[c])}"><span class="mq-nom">${esc(noms[c])}</span><span class="mq-score">${L[c]}</span>${srv===c?'<span class="mq-srv">🏓 au service</span>':''}${m.pj&&m.pj[c==='a'?0:1]!=null?`<span class="mq-pj">${esc(TTL.PROJETS[m.pj[c==='a'?0:1]])}</span>`:''}</button>
         <button type="button" class="bt mini" data-act="mqmoins" data-v="${c}">− 1</button></div>`).join('')}</div>
-      <div class="mq-bas"><button type="button" class="bt mini" data-act="mqinv">⇄ Changer de côté</button><span class="small">Touchez le côté du joueur qui marque.</span></div>`;
+      ${window.barreCodes?barreCodes(m,noms):''}
+      <div class="mq-bas"><button type="button" class="bt mini" data-act="mqinv">⇄ Côtés</button><button type="button" class="bt mini${m.coach?' on':''}" data-act="mqcoach" aria-pressed="${!!m.coach}">🗣️ Codes du coach${m.coach?' ✓':''}</button><button type="button" class="bt mini" data-act="tempsmort">⏸ Temps mort</button><span class="small">Touchez le côté du joueur qui marque.</span></div>`;
   }
   z.innerHTML=h;
 }
 function pointMarque(c,d){
   const P=S.poules[pk()],m=P.matchs[MQ.i],L=m.live;if(!L)return;
-  L[c]=Math.max(0,L[c]+d);
+  if(window.codePoint)codePoint(m,c,d,L);
+  L[c]=Math.max(0,L[c]+d);modif();
   if(TTL.mancheFinie(L.a,L.b)){m.m=(m.m||[]).filter(x=>x&&x[0]!==''&&x[1]!=='');m.m.push([L.a,L.b]);m.premier0=L.p;delete m.live;
     if(!TTL.etatMatch(m,P.fmt).fini)MQ.inv=!MQ.inv; // on change de côté à chaque manche
     try{navigator.vibrate&&navigator.vibrate([60,60,60])}catch(e){}}
@@ -591,7 +600,7 @@ async function montrerQR(i){
     const el=F.filter(f=>f.o.type!=='poule');QRS=[];
     for(const f of el){const k=S.eleves.findIndex(E=>E.nom===f.o.eleve);QRS.push({titre:(k>=0?'ABC'[k]+' · ':'')+f.o.eleve,txt:await TTL.chaineQR(f.o)})}
     for(const [t,P] of toursDe(n)){
-      const q={a:'TTE',v:1,t:'P',c:S.classe,s:+cleTour(n,t),d:today(),ts:Math.round(Date.now()/1000),p:[P.num,P.fmt,P.joueurs,P.arbDisp||'',P.matchs.map(m=>[m.a,m.b,m.arb,m.f||'',(m.m||[]).filter(x=>x&&x[0]!==''&&x[1]!=='').map(x=>[+x[0],+x[1]]),m.pj||0,m.pjok||0])]};
+      const q={a:'TTE',v:1,t:'P',c:S.classe,s:+cleTour(n,t),d:today(),ts:Math.round(Date.now()/1000),p:[P.num,P.fmt,P.joueurs,P.arbDisp||'',P.matchs.map(m=>[m.a,m.b,m.arb,m.f||'',(m.m||[]).filter(x=>x&&x[0]!==''&&x[1]!=='').map(x=>[+x[0],+x[1]]),m.pj||0,m.pjok||0,m.codes?[m.codes.a,m.codes.b]:0])]};
       QRS.push({titre:'Poule '+P.num+(t>1?' · tour '+t:'')+' (tous les matchs)',txt:await chaineBrute(q)})}
   }
   const k=Math.max(0,Math.min(i,QRS.length-1)),Q=QRS[k];
@@ -609,10 +618,11 @@ async function chaineBrute(q){ // même encodage que TTL.chaineQR, pour un objet
 function telecharger(nom,texte){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([texte],{type:'application/json'}));a.download=nom;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
 async function enregistrerFichiers(){
   const F=fichiers(S.seance);if(!F.length)return false;
-  const files=F.map(f=>new File([JSON.stringify(f.o,null,1)],f.nom,{type:'application/json'}));
+  const files=F.map(f=>new File([JSON.stringify(f.o,null,1)],f.nom,{type:'application/json'})).concat(window.fichierSecours?await fichierSecours():[]);
   let ok=false;
   try{if(navigator.canShare&&navigator.canShare({files})){await navigator.share({files,title:'Tennis de table · séance '+S.seance});ok=true}}catch(e){if(e&&e.name==='AbortError')return false}
-  if(!ok){for(let i=0;i<F.length;i++){telecharger(F[i].nom,JSON.stringify(F[i].o,null,1));await new Promise(r=>setTimeout(r,400))}}
+  if(!ok){for(let i=0;i<F.length;i++){telecharger(F[i].nom,JSON.stringify(F[i].o,null,1));await new Promise(r=>setTimeout(r,400))}
+    for(const f of files.slice(F.length)){telecharger(f.name,await f.text());await new Promise(r=>setTimeout(r,400))}}
   S.envoi[S.seance]=Object.assign(S.envoi[S.seance]||{},{fichier:Date.now()});sauver();rendre();
   return true;
 }
@@ -621,6 +631,7 @@ async function enregistrerFichiers(){
 document.addEventListener('click',async ev=>{
   const b=ev.target.closest('[data-act]');if(!b)return;
   const a=b.dataset.act,v=b.dataset.v;
+  if(window.EPLUS&&EPLUS.clic&&await EPLUS.clic(a,v,b,ev))return;
   if(a==='fermerVoile'){if(ev.target===b&&!PENDING)fermer();return}
   if(a==='choisir'){const g=ROOT.groupes[v];
     if(g.clair)demanderCode('Protéger votre carnet','Choisissez un code secret de 4 chiffres pour votre groupe. Retenez-le : il sera demandé à chaque cours.',c=>ouvrir(v,c),true);
@@ -633,7 +644,9 @@ document.addEventListener('click',async ev=>{
       <div class="rangee" style="justify-content:space-between"><button class="bt" type="button" data-act="fermer">Annuler</button><button class="bt danger" type="button" data-act="suppridoublie" data-v="${id}">Supprimer ce carnet</button></div>`);return}
   if(a==='suppridoublie'){if(!confirm('Supprimer définitivement ce carnet ?'))return;delete ROOT.groupes[v];ecrireRoot();fermer();rendre();return}
   if(a==='nouveauqr'||(a==='qrclasse'&&!S)){TTQR.scanner(async t=>recevoirClasse(await TTQR.decoder(t)),{titre:'QR de la classe',aide:'Scanne le QR affiché par le professeur.'});return}
-  if(a==='changer'){fermer();await verrouiller();rendre();window.scrollTo(0,0);return}
+  if(a==='changer'){const ne=S?nonEnvoyees():[];
+    if(ne.length&&!confirm('⚠ Séance '+ne.join(', ')+' non envoyée au professeur.\n\nOK = changer quand même\nAnnuler = rester pour envoyer')){fermer();S.tab='envoi';rendre();return}
+    fermer();await verrouiller();rendre();window.scrollTo(0,0);return}
   if(a==='video'){ouvrirVideo(b.dataset.u,b.dataset.t);return}
   if(a==='fermer'){fermer();return}
   if(!S)return;
@@ -685,12 +698,12 @@ document.addEventListener('click',async ev=>{
       const old=S.poules[pk()],num=+$('#p-num').value,fmt=$('#p-fmt').value,mouv=$('#p-mouv').checked;
       const memes=old&&old.matchs&&old.joueurs.join('|')===J.join('|');
       if(old&&old.matchs&&!memes&&old.matchs.some(m=>(m.m||[]).length||m.f)&&!confirm('Les scores déjà saisis seront effacés. Continuer ?'))return;
-      S.poules[pk()]={num,fmt,mouv,joueurs:J,arbDisp,matchs:memes?old.matchs:TTL.creerMatchs(J.length)};QRS=null;break}
+      modif();S.poules[pk()]={num,fmt,mouv,joueurs:J,arbDisp,matchs:memes?old.matchs:TTL.creerMatchs(J.length)};QRS=null;break}
     case 'pedit':S.poules[pk()].edit=true;break;
     case 'pannuler':{const k=pk();delete S.poules[k].edit;if(!S.poules[k].matchs)delete S.poules[k];break}
     case 'tour':S.tour=+v;QRS=null;break;
     case 'projets':fenProjets(+b.dataset.m);return;
-    case 'pjok':{const P=S.poules[pk()],m=P.matchs[+b.dataset.m],j=+b.dataset.j;m.pjok=m.pjok||[null,null];m.pjok[j]=m.pjok[j]===(v==='1')?null:(v==='1');sauver();QRS=null;if(MQ){peindreMarque();return}fenProjets(+b.dataset.m);return}
+    case 'pjok':{modif();const P=S.poules[pk()],m=P.matchs[+b.dataset.m],j=+b.dataset.j;m.pjok=m.pjok||[null,null];m.pjok[j]=m.pjok[j]===(v==='1')?null:(v==='1');sauver();QRS=null;if(MQ){peindreMarque();return}fenProjets(+b.dataset.m);return}
     case 'fermerRendre':fermer();if(MQ){peindreMarque();return}break;
     case 'marque':ouvrirMarque(+b.dataset.m);return;
     case 'mqfermer':MQ=null;peindreMarque();break;
@@ -711,6 +724,7 @@ document.addEventListener('click',async ev=>{
 });
 document.addEventListener('change',async ev=>{
   const t=ev.target;
+  if(window.EPLUS&&EPLUS.change&&await EPLUS.change(t,ev))return;
   if(t.id==='reprise'&&t.files[0]){
     try{const o=JSON.parse(await t.files[0].text());if(!o.carnetTT||!o.v)throw 0;
       delete o.carnetTT;if(o.cfg)ROOT.classes[o.cfg.classe]=o.cfg;
@@ -730,8 +744,8 @@ document.addEventListener('change',async ev=>{
       if(r.disp)[0,1].forEach(sl=>{if(r.axes[sl]&&!AXES_DISP.includes(r.axes[sl]))changerAxe(r,sl,null,null)});
       if(!r.disp)delete r.disp;break}
     case 'val':r.val[t.dataset.k]=t.checked;if(!t.checked)delete r.val[t.dataset.k];touche(r);break;
-    case 'pj':{const P=S.poules[pk()],m=P.matchs[+t.dataset.m],j=+t.dataset.j;m.pj=m.pj||[null,null];m.pj[j]=t.value===''?null:+t.value;if(m.pjok)m.pjok[j]=null;QRS=null;sauver();fenProjets(+t.dataset.m);return}
-    case 'forf':{const P=S.poules[pk()];P.matchs[+t.dataset.m].f=t.value||null;QRS=null;break}
+    case 'pj':{modif();const P=S.poules[pk()],m=P.matchs[+t.dataset.m],j=+t.dataset.j;m.pj=m.pj||[null,null];m.pj[j]=t.value===''?null:+t.value;if(m.pjok)m.pjok[j]=null;QRS=null;sauver();fenProjets(+t.dataset.m);return}
+    case 'forf':{modif();const P=S.poules[pk()];P.matchs[+t.dataset.m].f=t.value||null;QRS=null;break}
     default:return;
   }
   sauver();rendre();
@@ -740,7 +754,7 @@ document.addEventListener('keydown',ev=>{if(ev.target&&ev.target.id==='code'&&ev
 document.addEventListener('input',ev=>{
   const t=ev.target,c=t.dataset.ch;if(!c||!S||!S.eleves.length)return;
   const E=elv(),n=S.seance;
-  if(c==='set'){const P=S.poules[pk()],m=P.matchs[+t.dataset.m];m.m=m.m||[];const s=+t.dataset.s;m.m[s]=m.m[s]||['',''];m.m[s][+t.dataset.c]=t.value.replace(/\D/g,'').slice(0,2);QRS=null;sauver();
+  if(c==='set'){modif();const P=S.poules[pk()],m=P.matchs[+t.dataset.m];m.m=m.m||[];const s=+t.dataset.s;m.m[s]=m.m[s]||['',''];m.m[s][+t.dataset.c]=t.value.replace(/\D/g,'').slice(0,2);QRS=null;sauver();
     const bz=document.getElementById('mb-'+t.dataset.m);if(bz)bz.innerHTML=badge(P,m);const cz=document.getElementById('pcl');if(cz)cz.innerHTML=htmlClassement(P);const hz=document.getElementById('phist');if(hz)hz.outerHTML=historique();return}
   const r=rec(E.id,n);
   if(c==='exrq')r.exos[+t.dataset.i].rq=t.value;

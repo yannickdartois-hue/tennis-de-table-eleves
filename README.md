@@ -52,3 +52,12 @@ Onglet Poule : boutons « Tour 1 à 4 ». D'habitude un seul tour ; le jour de l
 - **Projets de jeu** : avant le match, chaque joueur annonce son projet (liste commune dans `logique.js`) ; après, l'arbitre dit s'il est réalisé. Sert à la note « choix tactiques ».
 - **Vérifié par l'observateur** : un niveau d'exercice compte quand un camarade (ou le prof) le confirme.
 - **Séance du jour** : à l'ouverture, l'appli prend la séance déjà commencée aujourd'hui, sinon la suivante de la dernière faite.
+
+## Suivi élève, coach en match, secours (19/10/2026) — `eleve-plus.js`
+- **Rappel d'envoi** : si une séance a été modifiée depuis le dernier envoi (QR ou en ligne), bandeau rouge « Séance N non envoyée » dans l'appli, onglet Envoyer en rouge, mention sur le bouton du groupe à l'accueil, et confirmation avant « Changer ». Les envois contiennent la liste du `groupe` (fichier) / `gr` (QR) : l'outil prof liste dans **Appel** les groupes qui n'ont rien envoyé.
+- **Onglet Progrès** : étoile début/fin, matchs à thème validés, niveaux par exercice et par séance (✓ = vérifié), poules et rangs.
+- **Prochain pas** sous chaque niveau coché : critère suivant, ou exercice suivant de l'axe (bouton « Ajouter »), ou match à thème.
+- **Codes du coach** sur le tableau de marque (codes GAREEPS 0, 1, 2, 3 au gagnant ; x au perdant), « − 1 » annule le dernier code. Stockés par match (`codes`, `co` dans les fichiers, 8e élément du match dans le QR de poule). Reprise en un clic dans la grille du coach de l'étoile.
+- **Temps mort** guidé (1 min, conseils tirés des codes et du projet), **chronos** repérés dans les consignes (« 2 min », « 30 s »), **grand écran** pour poser la tablette sur la table, icônes.
+- **Mise à jour visible** : bandeau « Nouvelle version » quand le service worker change.
+- **Copie de secours chiffrée** : le QR de classe contient la clé publique du prof (`k`, ECDH P-256). À chaque envoi en ligne, un fichier `secours_….json` (carnet complet chiffré AES-GCM) part avec les séances ; seul l'outil prof qui a créé la clé peut l'ouvrir.
