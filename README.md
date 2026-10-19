@@ -8,7 +8,7 @@ Appli élève hors ligne du lycée Georges Pompidou. Un téléphone pour 2 ou 3 
 - **Envoyer** : QR code par élève (+ un pour la poule), ou fichiers JSON à déposer dans le Nuage (lien « Demande de fichier – Téléversement seulement »).
 
 ## Réglages
-- Lien de dépôt : constante `DEPOT_DEFAUT` en haut de `app.js`, ou champ « Lien de dépôt » de l'écran Groupe.
+- Lien de dépôt : constante `DEPOT_DEFAUT` en haut de `app.js` (jamais affiché aux élèves). Vide = le bouton « Envoyer ma séance du jour en ligne » renvoie vers le QR code.
 - Après une modification des fichiers : augmenter `VERSION` dans `sw.js`.
 
 ## Format des fichiers

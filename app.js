@@ -4,8 +4,8 @@
    Données gardées sur le téléphone uniquement (localStorage).
    ===================================================================== */
 'use strict';
-/* Lien de dépôt du Nuage (« Demande de fichier – Téléversement seulement »).
-   À remplir ici par le professeur ; il peut aussi être collé dans l'écran « Groupe ». */
+/* Envoi en ligne : lien de dépôt du Nuage (« Demande de fichier – Téléversement seulement »).
+   Réglé ici par le professeur uniquement ; il n'apparaît jamais à l'écran. Vide = envoi en ligne pas encore activé. */
 const DEPOT_DEFAUT='';
 const CLE='tte-v1',NB_SEANCES=9,VERSION=1;
 const COURT={strat:'Stratégie',cont:'Continuité',diff:'Mettre en difficulté',eng:'Engagement',ana:'Analyse',coach:'Coach',arb:'Arbitrage'};
@@ -63,7 +63,7 @@ function rendre(){
   $('#qui').hidden=!parEleve;
   $('#qui').innerHTML=parEleve?S.eleves.map((e,i)=>`<button type="button" data-act="qui" data-v="${i}" class="${S.cur===i?'ici':''}">${esc(e.nom.split(/\s+/)[0]||e.nom)}</button>`).join(''):'';
   // onglets
-  const O=[['seance','Séance','Exercices'],['etoile','Étoile','Je me situe'],['poule','Poule','Matchs'],['regles','Règles','et gestes'],['envoi','Envoyer','QR · Nuage']];
+  const O=[['seance','Séance','Exercices'],['etoile','Étoile','Je me situe'],['poule','Poule','Matchs'],['regles','Règles','et gestes'],['envoi','Envoyer','Ma séance']];
   $('#onglets').innerHTML=O.map(o=>`<button type="button" data-act="tab" data-v="${o[0]}" class="${S.tab===o[0]?'ici':''}"><b>${o[1]}</b>${o[2]}</button>`).join('');
   $('#onglets').hidden=!g;
   const V={regles:vRegles,groupe:vGroupe,seance:vSeance,etoile:vEtoile,poule:vPoule,envoi:vEnvoi};
@@ -78,7 +78,6 @@ function vGroupe(){
   <div class="carte">
     <label class="ch" for="g-classe">Classe</label><input id="g-classe" type="text" placeholder="1G3" value="${esc(S.classe)}" autocomplete="off">
     ${L.map((e,i)=>`<label class="ch" for="g-e${i}">Élève ${i+1}${i===2?' (si vous êtes 3)':''}</label><input id="g-e${i}" data-id="${esc(e.id)}" type="text" placeholder="Prénom Nom" value="${esc(e.nom)}" autocomplete="off">`).join('')}
-    <label class="ch" for="g-depot">Lien de dépôt du Nuage (donné par le professeur)</label><input id="g-depot" type="url" placeholder="https://nuage03.apps.education.fr/…" value="${esc(S.depot)}" autocomplete="off">
     <div class="rangee" style="margin-top:14px"><button class="bt orange" type="button" data-act="gvalider">Enregistrer le groupe</button></div>
   </div>
   <div class="carte"><h3>Changer de téléphone</h3>
@@ -294,23 +293,26 @@ function fichiers(n){
   return L;
 }
 function vEnvoi(){
-  const n=S.seance,F=fichiers(n),ev=S.envoi[n]||{};
-  const ligne=f=>{const o=f.o;if(o.type==='poule')return `<li><b>${esc(o.eleve)}</b> : résultats de poule seulement</li>`;
-    const nx=o.exercices.length,nn=o.exercices.filter(e=>e.niveau).length;
-    return `<li><b>${esc(o.eleve)}</b> : ${o.axes.length} axe${o.axes.length>1?'s':''}, ${nx} exercice${nx>1?'s':''} (${nn} niveau${nn>1?'x':''} coché${nn>1?'s':''})${o.etoile?', étoile':''}${o.poule?', poule '+o.poule.numero+' (rang '+o.poule.rang+')':''}${!nx&&!o.etoile&&!o.poule?' <span class="badge">vide</span>':''}</li>`};
-  const manquants=S.eleves.filter(E=>!exportEleve(E,n));
+  const n=S.seance,F=fichiers(n),ev=S.envoi[n]||{},LET='ABC';
+  const resume=o=>{const nx=o.exercices.length,nn=o.exercices.filter(e=>e.niveau).length,L=[];
+    if(o.axes.length)L.push(o.axes.length+' axe'+(o.axes.length>1?'s':''));
+    if(nx)L.push(nx+' exercice'+(nx>1?'s':'')+(nn?' ('+nn+' niveau'+(nn>1?'x':'')+' coché'+(nn>1?'s':'')+')':''));
+    if(o.etoile)L.push('étoile');if(o.poule)L.push('poule '+o.poule.numero+', rang '+o.poule.rang);
+    return L.join(', ')};
+  const lignes=S.eleves.map((E,k)=>{const o=exportEleve(E,n);
+    return `<li class="${o?'':'manque'}"><span class="lettre">${LET[k]}</span><span><b>${esc(E.nom)}</b><small>${o?esc(resume(o))||'séance ouverte, rien de coché':'rien de saisi'}</small></span>${o?'<em>✓</em>':''}</li>`}).join('');
+  const autres=F.filter(f=>f.o.type==='poule');
+  const heure=t=>new Date(t).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
   return `<h2>Fin de séance ${n}</h2>
-  <section class="carte"><h3>Ce qui va partir</h3>${F.length?`<ul>${F.map(ligne).join('')}</ul>`:'<p class="muted">Rien n’a encore été saisi pour cette séance.</p>'}
-    ${manquants.length?`<p class="avert">Rien de saisi pour : ${manquants.map(e=>esc(e.nom)).join(', ')}.</p>`:''}</section>
-  <section class="carte"><h3>1re façon · QR code</h3><p class="small muted">Sans internet : montre les QR codes au professeur, un par élève${S.poules[n]?', plus un pour la poule':''}. Monte la luminosité de l’écran.</p>
-    <button class="bt noir" type="button" data-act="qr" ${F.length?'':'disabled'}>Montrer les QR codes</button> ${ev.qr?`<span class="ok small">✓ montrés à ${new Date(ev.qr).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</span>`:''}</section>
-  <section class="carte"><h3>2e façon · Envoi en ligne</h3>
-    <p class="small muted">Avec internet : 1. enregistre les fichiers sur le téléphone ; 2. ouvre le dépôt du Nuage, touche « Téléverser » et choisis les fichiers dans Téléchargements.</p>
-    <div class="rangee"><button class="bt noir" type="button" data-act="fichiers" ${F.length?'':'disabled'}>1. Enregistrer les fichiers</button>
-    <button class="bt orange" type="button" data-act="depot">2. Ouvrir le dépôt du Nuage</button></div>
-    ${ev.fichier?`<p class="ok small">✓ fichiers enregistrés à ${new Date(ev.fichier).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</p>`:''}
-    ${(S.depot||DEPOT_DEFAUT)?'':'<p class="avert small">Le lien de dépôt n’est pas encore réglé : demande-le au professeur et colle-le dans « Groupe ».</p>'}
-    <p class="small muted">Noms des fichiers : ${F.map(f=>esc(f.nom)).join(', ')||'—'}</p></section>`;
+  <section class="carte"><h3>Ma séance du jour</h3><ul class="envoi">${lignes}</ul>
+    ${autres.length?`<p class="small muted">Résultats de poule envoyés aussi pour : ${autres.map(f=>esc(f.o.eleve)).join(', ')}.</p>`:''}
+    ${S.eleves.some(E=>!exportEleve(E,n))?`<p class="avert small">Chaque élève choisit son prénom en haut de l’écran avant de saisir ses exercices.</p>`:''}</section>
+  <div class="gros">
+    <button class="bt orange" type="button" data-act="enligne" ${F.length?'':'disabled'}>Envoyer ma séance du jour en ligne</button>
+    ${ev.fichier?`<p class="ok small">✓ envoyée à ${heure(ev.fichier)}</p>`:''}
+    <button class="bt noir" type="button" data-act="qr" ${F.length?'':'disabled'}>Montrer le QR code</button>
+    ${ev.qr?`<p class="ok small">✓ QR montré à ${heure(ev.qr)}</p>`:''}
+  </div>`;
 }
 
 /* ---------- Fenêtres ---------- */
@@ -344,7 +346,7 @@ async function montrerQR(i){
   if(!QRS){const n=S.seance;const F=fichiers(n);
     // un QR par élève du groupe ; la poule (autres joueurs) part dans un seul QR
     const el=F.filter(f=>f.o.type!=='poule');QRS=[];
-    for(const f of el)QRS.push({titre:f.o.eleve,txt:await TTL.chaineQR(f.o)});
+    for(const f of el){const k=S.eleves.findIndex(E=>E.nom===f.o.eleve);QRS.push({titre:(k>=0?'ABC'[k]+' · ':'')+f.o.eleve,txt:await TTL.chaineQR(f.o)})}
     const P=S.poules[n];
     if(P&&P.matchs){const o={classe:S.classe,eleve:'Poule '+P.num,seance:n,date:today(),type:'poule'};
       const q={a:'TTE',v:1,t:'P',c:S.classe,s:n,d:today(),p:[P.num,P.fmt,P.joueurs,P.matchs.map(m=>[m.a,m.b,m.arb,m.f||'',(m.m||[]).filter(x=>x&&x[0]!==''&&x[1]!=='').map(x=>[+x[0],+x[1]])])]};
@@ -364,13 +366,13 @@ async function chaineBrute(q){ // même encodage que TTL.chaineQR, pour un objet
 }
 function telecharger(nom,texte){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([texte],{type:'application/json'}));a.download=nom;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
 async function enregistrerFichiers(){
-  const F=fichiers(S.seance);if(!F.length)return;
+  const F=fichiers(S.seance);if(!F.length)return false;
   const files=F.map(f=>new File([JSON.stringify(f.o,null,1)],f.nom,{type:'application/json'}));
   let ok=false;
-  try{if(navigator.canShare&&navigator.canShare({files})){await navigator.share({files,title:'Tennis de table · séance '+S.seance});ok=true}}catch(e){if(e&&e.name==='AbortError')return}
+  try{if(navigator.canShare&&navigator.canShare({files})){await navigator.share({files,title:'Tennis de table · séance '+S.seance});ok=true}}catch(e){if(e&&e.name==='AbortError')return false}
   if(!ok){for(let i=0;i<F.length;i++){telecharger(F[i].nom,JSON.stringify(F[i].o,null,1));await new Promise(r=>setTimeout(r,400))}}
   S.envoi[S.seance]=Object.assign(S.envoi[S.seance]||{},{fichier:Date.now()});sauver();rendre();
-  toast(ok?'Fichiers partagés.':F.length+' fichier'+(F.length>1?'s':'')+' dans Téléchargements.');
+  return true;
 }
 
 /* ---------- Évènements ---------- */
@@ -387,14 +389,13 @@ document.addEventListener('click',async ev=>{
     case 'seance':S.seance=+v;QRS=null;break;
     case 'qui':S.cur=+v;break;
     case 'gvalider':{
-      const cl=$('#g-classe').value.trim(),dep=$('#g-depot').value.trim(),L=[];
+      const cl=$('#g-classe').value.trim(),L=[];
       for(let i=0;i<3;i++){const inp=$('#g-e'+i),nom=inp.value.trim().replace(/\s+/g,' ');if(nom)L.push({id:inp.dataset.id||uid(),nom})}
       if(L.length<1){toast('Écris au moins un élève.');return}
-      if(dep&&!/^https:\/\//.test(dep)){toast('Le lien de dépôt doit commencer par https://');return}
       // un élève renommé garde ses données (même id) ; on renomme aussi dans les poules
       const ancien={};S.eleves.forEach(e=>ancien[e.id]=e.nom);
       L.forEach(e=>{const o=ancien[e.id];if(o&&o!==e.nom)Object.values(S.poules).forEach(P=>{const i=P.joueurs.indexOf(o);if(i>=0)P.joueurs[i]=e.nom})});
-      S.classe=cl;S.depot=dep;S.eleves=L;S.cur=0;S.tab='seance';toast('Groupe enregistré.');break}
+      S.classe=cl;S.eleves=L;S.cur=0;S.tab='seance';toast('Groupe enregistré.');break}
     case 'sauvegarde':telecharger('Carnet_TT_'+(TTL.slug(S.classe)||'groupe')+'_'+today()+'.json',JSON.stringify(Object.assign({carnetTT:1},S)));return;
     case 'toutEffacer':if(!confirm('Effacer le groupe et toutes ses séances sur ce téléphone ? Envoie d’abord tes fichiers.'))return;S=vide();break;
     case 'niv':{const r=rec(E.id,n),x=r.exos[+b.dataset.i];x.niv=x.niv===+v?0:+v;touche(r);break}
@@ -424,8 +425,10 @@ document.addEventListener('click',async ev=>{
     case 'qr':QRS=null;await montrerQR(0);return;
     case 'qrnav':await montrerQR(+v);return;
     case 'qrfin':S.envoi[n]=Object.assign(S.envoi[n]||{},{qr:Date.now()});fermer();break;
-    case 'fichiers':await enregistrerFichiers();return;
-    case 'depot':{const u=S.depot||DEPOT_DEFAUT;if(!u){toast('Lien de dépôt manquant : demande-le au professeur.');return}window.open(u,'_blank','noopener');return}
+    case 'enligne':{
+      if(!DEPOT_DEFAUT){fen(`<h3>Envoi en ligne</h3><p>L’envoi en ligne n’est pas encore activé par le professeur.</p><p><b>Montre ton QR code</b> au professeur à la place.</p><div class="rangee" style="justify-content:space-between"><button class="bt" type="button" data-act="fermer">Fermer</button><button class="bt noir" type="button" data-act="qr">Montrer le QR code</button></div>`);return}
+      const ok=await enregistrerFichiers();if(!ok)return;
+      fen(`<h3>Dernière étape</h3><p>Les fichiers de la séance sont prêts. Touche « Déposer », puis choisis-les dans Téléchargements (ou Fichiers).</p><div class="rangee" style="justify-content:space-between"><button class="bt" type="button" data-act="fermer">Fermer</button><a class="bt orange" href="${DEPOT_DEFAUT}" target="_blank" rel="noopener" data-act="fermer">Déposer</a></div>`);return}
     default:return;
   }
   sauver();rendre();
