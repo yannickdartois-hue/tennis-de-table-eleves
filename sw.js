@@ -1,7 +1,7 @@
 /* Hors ligne : l'appli est gardée sur le téléphone après la 1re ouverture.
-   Après une modification, augmenter VERSION (ex. tte-v9 → tte-v9). */
-const VERSION='tte-v9';
-const FICHIERS=['./','index.html','app.js','logique.js','donnees.js','qrcode.js','jsqr.js','scan.js','videos.js','prof.html','prof.js','jszip.js','xlsx.js','prof-icon.png','principes.js','manifest.webmanifest',
+   Après une modification, augmenter VERSION (ex. tte-v10 → tte-v10). */
+const VERSION='tte-v10';
+const FICHIERS=['./','index.html','app.js','logique.js','donnees.js','qrcode.js','jsqr.js','scan.js','videos.js','principes.js','manifest.webmanifest',
   'icon-32.png','icon-180.png','icon-192.png','icon-512.png',
   'polices/archivo.woff2','polices/atkinson-400.woff2','polices/atkinson-700.woff2',
   ...['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31','32','33','34','A1','A2','A3','A4','R1','R2','R3','R4','R5','R6','R7','R8','R9','R10','R11'].map(n=>'img/ex'+n+'.jpg'),

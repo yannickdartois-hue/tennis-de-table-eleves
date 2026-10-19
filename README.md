@@ -26,18 +26,12 @@ Données GAREEPS reprises de `tennis-de-table` (sans modification). QR : qrcode-
 ## Changement de groupe (19/10/2026)
 Groupe → « … part » affiche un QR avec l'historique de l'élève (étoile, axes, matchs à thème validés, poules). Sur le téléphone du nouveau groupe : Groupe → « Scanner le QR de l'élève qui arrive ». Les séances reçues ne sont pas renvoyées une seconde fois.
 
-## Outil prof : `prof.html`
-Adresse : `https://yannickdartois-hue.github.io/tennis-de-table-eleves/prof.html` (aucun lien depuis l'appli élève).
-- **Importer** : scanner les QR des élèves à la suite (caméra), ou choisir les fichiers .json / le .zip du dossier Nuage. Pas de doublon si on réimporte.
-- **Tournoi** : pour chaque séance, chaque poule avec ses joueurs, le classement (points, V, D, manches et points gagnés-perdus, montée ↑ / descente ↓) et tous les matchs manche par manche.
-- **Élèves** : tableau de la classe (poule et rang à chaque séance, totaux) ; fiche de chaque élève (matchs, séances de travail, critères atteints, changements d'axe, étoile début / fin) ; fusion de deux noms mal tapés.
-- **Exporter** : 3 fichiers CSV pour Excel (bilan par élève, tournoi séance par séance, séances de travail).
-- Données gardées sur l'appareil du prof ; sauvegarde / restauration pour passer de l'iPad au PC.
-Bibliothèques : jsQR (Apache 2.0), JSZip (MIT).
+## Outil prof
+Dans son propre dépôt : **tennis-de-table-prof** (https://yannickdartois-hue.github.io/tennis-de-table-prof/). `donnees.js`, `logique.js`, `scan.js`, `qrcode.js`, `jsqr.js` y sont copiés : garder la même version dans les deux dépôts.
 
 ## Organisation par année (19/10/2026)
 Rien à modifier dans le code d'une année sur l'autre.
-1. **Rentrée** : outil prof → onglet **Classes** → importer l'export Pronote de chaque classe (xlsx, xls ou csv ; ou coller la liste). Coller le lien d'envoi en ligne de la classe (Nuage, « Demande de fichier »).
+1. **Rentrée** : outil prof (dépôt tennis-de-table-prof) → onglet **Classes** → importer l'export Pronote de chaque classe (xlsx, xls ou csv ; ou coller la liste). Coller le lien d'envoi en ligne de la classe (Nuage, « Demande de fichier »).
 2. **1er cours** : bouton **QR de démarrage** de la classe ; chaque téléphone de groupe le scanne (Groupe → « Scanner le QR de la classe »). Les élèves choisissent leur nom dans la liste.
 3. **Chaque séance** : les élèves envoient (QR ou en ligne) ; onglets **Appel** (présents, dispensés, rien reçu, corrections), **Tournoi** (poules + classement de la classe), **Élèves** (classement du cycle = moyenne des rangs dans la classe).
 4. **Fin d'année** : Classes → « Archiver l'année et repartir à zéro ».
