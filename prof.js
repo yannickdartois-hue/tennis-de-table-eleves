@@ -223,6 +223,8 @@ function vFiche(){
       ${r.chg.map(c=>`<p class="avert small">Changement d’axe non validé : ${esc(COURT[c.de]||c.de)} → ${esc(COURT[c.vers]||c.vers||'aucun')} · « ${esc(c.motif)} »</p>`).join('')}
       ${r.grille?`<p class="small">Grille du coach : score observé ${r.grille.scoreObserve}${r.grille.projet?` · projet : « ${esc(r.grille.projet)} »`:''}</p>`:''}
       ${r.bilan?`<p class="small"><b>Bilan :</b> ${esc(r.bilan)}</p>`:''}</div>`:''}</section>`}).join('')}
+  <section class="carte"><h3>QR de reprise</h3><p class="small muted">Si l’élève change de tablette ou si son groupe a oublié son code : ce QR lui rend son étoile, ses axes, ses matchs à thème validés et ses poules (d’après ce qu’il t’a envoyé). Dans son groupe : Mon groupe → « Scanner le QR de l’élève qui arrive ».</p>
+    <button class="bt noir" type="button" data-act="reprise" data-k="${esc(k)}">Afficher le QR de reprise</button></section>
   ${autres.length?`<section class="carte"><h3>Même élève sous un autre nom ?</h3><p class="small muted">Si ${esc(nomAffiche(k))} apparaît aussi avec une faute de frappe, fusionne les deux.</p>
     <div class="rangee"><select id="fusion"><option value="">— Choisir —</option>${autres.map(a=>`<option value="${esc(a)}">${esc(nomAffiche(a))}</option>`).join('')}</select><button class="bt mini" type="button" data-act="fusionner">Fusionner dans ${esc(nomAffiche(k))}</button></div></section>`:''}`;
 }
@@ -261,6 +263,17 @@ function classementCycle(R){
   L.sort((a,b)=>a.moy-b.moy||b.n-a.n||b.pct-a.pct);
   const pos={};L.forEach((e,i)=>{pos[e.k]={place:i+1,moy:Math.round(e.moy*10)/10,n:e.n}});
   return pos;
+}
+
+async function qrReprise(k){
+  const R=resultatsPoules(),recs=recsClasse().filter(r=>r.k===k).sort((a,b)=>a.seance-b.seance);
+  const h={s:recs.filter(r=>r.axes.length||(r.etoile&&r.etoile.some(Boolean))).map(r=>[r.seance,[(r.axes[0]||{}).k||'',(r.axes[1]||{}).k||''],r.axes.filter(a=>a.val).map(a=>a.k),r.etoile&&r.etoile.some(Boolean)?r.etoile:0]),
+    p:Object.entries(R[k]||{}).map(([s,x])=>[+s,x.num,x.rang,x.n,x.v,x.d,x.mv==='monte'?'monte en poule '+(x.num-1):x.mv==='descend'?'descend en poule '+(x.num+1):x.mv==='reste'?'reste en poule '+x.num:''])};
+  const txt=await TTQR.encoder({a:'TTE',v:1,t:'T',c:DB.classe,e:nomAffiche(k),h});
+  let svg;try{svg=TTQR.svgQR(txt)}catch(e){svg='<p class="avert">Historique trop long pour un QR.</p>'}
+  const d=document.createElement('div');d.className='qr-plein';
+  d.innerHTML=`<div><h2>${esc(nomAffiche(k))} · reprise</h2><p>Mon groupe → « Scanner le QR de l’élève qui arrive »</p><div class="qrbox">${svg}</div><button class="bt noir" type="button">Fermer</button></div>`;
+  d.querySelector('button').onclick=()=>d.remove();document.body.appendChild(d);
 }
 
 /* ---------- Classes : import des listes Pronote ---------- */
@@ -385,6 +398,7 @@ document.addEventListener('click',e=>{
     case 'csv':exporter(v);return;
     case 'tri':DB.tri=v;break;
     case 'qrdem':qrDemarrage(v);return;
+    case 'reprise':qrReprise(b.dataset.k);return;
     case 'clcoller':importerListe([],$('#cl-txt').value,$('#cl-nom').value.trim());return;
     case 'clsuppr':if(!confirm('Retirer la liste de la classe '+v+' ? (Les séances reçues sont gardées.)'))return;delete DB.classesL[v];choisirClasseParDefaut();break;
     case 'archiver':{if(!confirm('Télécharger la sauvegarde de l’année puis tout effacer ?'))return;

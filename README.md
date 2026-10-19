@@ -45,4 +45,7 @@ Dispensés : case « Aujourd'hui je suis dispensé(e) » ; axes analyse, coach o
 Bibliothèque ajoutée : SheetJS (Apache 2.0) pour lire les fichiers Pronote.
 
 ## Tablettes partagées entre classes (19/10/2026)
-Une tablette garde un carnet par groupe, toutes classes confondues. À l'ouverture (dès qu'il y a 2 groupes ou plus) : écran « Qui utilise la tablette ? » ; chaque groupe touche son nom. « Changer » (en haut) revient à cet écran. Nouveau groupe : classe déjà connue de la tablette, ou scan du QR de la classe. « Supprimer ce groupe » n'efface que ce groupe. Les carnets de l'ancienne version sont repris automatiquement.
+Une tablette garde un carnet par groupe, toutes classes confondues. Chaque carnet est protégé par un **code secret de 4 chiffres** choisi par le groupe et **chiffré** avec ce code (AES-GCM, clé dérivée PBKDF2) : un autre groupe ne peut ni l'ouvrir ni le lire, même en fouillant la tablette. Seuls la classe et les prénoms apparaissent sur l'écran « Qui utilise la tablette ? ».
+- « Changer » (en haut), 10 min sans activité ou la réouverture de l'appli verrouillent le carnet.
+- Code oublié : le carnet ne peut pas être ouvert (pas de passe-partout) ; on le supprime, on crée un nouveau groupe, et l'outil prof donne à chaque élève un **QR de reprise** (fiche de l'élève) qui lui rend étoile, axes, matchs à thème validés et poules.
+- Les carnets des versions précédentes sont repris : le groupe choisit un code à la première ouverture.

@@ -23,23 +23,84 @@ const famCl=a=>a?{AFL1:'a1',AFL2:'a2',AFL3:'a3'}[a.afl]:'';
 function exInfo(n){for(const t of GA.themes){const e=t.ex.find(x=>x.n===n);if(e)return {t,e}}return null}
 
 /* ---------- État ---------- */
-/* Une tablette sert à plusieurs groupes et plusieurs classes : chaque groupe a son carnet.
-   ROOT = {v:2, actif, groupes:{id:carnet}, classes:{classe:{classe,eleves,lien}}} ; S = carnet du groupe actif. */
-function vide(){return {v:VERSION,classe:'',eleves:[],depot:'',cur:0,seance:1,tab:'seance',d:{},poules:{},envoi:{},hist:{},cfg:null,vu:Date.now()}}
+/* Une tablette sert à plusieurs groupes et plusieurs classes. Chaque groupe a son carnet,
+   CHIFFRÉ avec son code secret (4 chiffres) : un autre groupe ne peut ni l'ouvrir ni le lire.
+   ROOT = {v:3, groupes:{id:{classe,noms,sel,iv,data,vu}}, classes:{classe:{classe,eleves,lien}}}
+   S = carnet du groupe ouvert (en mémoire seulement), CLEF = sa clé de chiffrement. */
+function vide(){return {v:VERSION,classe:'',eleves:[],depot:'',cur:0,seance:1,tab:'seance',d:{},poules:{},envoi:{},hist:{},cfg:null}}
 function charger(){
   let o=null;try{o=JSON.parse(localStorage.getItem(CLE))}catch(e){}
-  if(o&&o.v===2&&o.groupes)return Object.assign({classes:{}},o);
-  const R={v:2,actif:null,groupes:{},classes:{}};
-  if(o&&o.v&&o.eleves){const id=uid();R.groupes[id]=Object.assign(vide(),o);R.actif=id;if(o.cfg)R.classes[o.cfg.classe]=o.cfg} // ancien format : un seul groupe
+  const R={v:3,groupes:{},classes:{}};
+  if(o&&o.v===3&&o.groupes)return Object.assign(R,o);
+  // anciennes versions : carnets en clair, ils seront chiffrés au premier code choisi
+  if(o&&o.v===2&&o.groupes){R.classes=o.classes||{};Object.entries(o.groupes).forEach(([id,g])=>{R.groupes[id]={classe:g.classe||'',noms:(g.eleves||[]).map(e=>e.nom.split(/\s+/)[0]),clair:g}})}
+  else if(o&&o.v&&o.eleves){R.groupes[uid()]={classe:o.classe||'',noms:o.eleves.map(e=>e.nom.split(/\s+/)[0]),clair:o};if(o.cfg)R.classes[o.cfg.classe]=o.cfg}
   return R;
 }
-let ROOT=charger();
-// À l'ouverture : avec plusieurs groupes sur l'appareil, chacun choisit le sien.
-if(Object.keys(ROOT.groupes).length>1)ROOT.actif=null;
-let S=ROOT.actif?ROOT.groupes[ROOT.actif]:null;
-function sauver(){if(S&&ROOT.actif){S.vu=Date.now();ROOT.groupes[ROOT.actif]=S}try{localStorage.setItem(CLE,JSON.stringify(ROOT))}catch(e){toast('Mémoire pleine : envoie les fichiers puis supprime les anciens groupes.')}}
-function activer(id){ROOT.actif=id;S=ROOT.groupes[id]||null;if(S&&!S.eleves.length)S.tab='groupe';else if(S&&S.tab==='groupe')S.tab='seance';sauver()}
-function nouveauGroupe(classe){const id=uid();const g=vide();const C=classe&&ROOT.classes[classe];if(C){g.cfg=JSON.parse(JSON.stringify(C));g.classe=classe}g.tab='groupe';ROOT.groupes[id]=g;activer(id)}
+let ROOT=charger(),S=null,ACTIF=null,CLEF=null;
+function ecrireRoot(){try{localStorage.setItem(CLE,JSON.stringify(ROOT))}catch(e){toast('Mémoire pleine : envoie les fichiers puis supprime les anciens groupes.')}}
+const b64=u=>{let x='';new Uint8Array(u).forEach(c=>x+=String.fromCharCode(c));return btoa(x)};
+const deb64=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
+async function deriver(code,sel){
+  const base=await crypto.subtle.importKey('raw',new TextEncoder().encode('tte|'+code),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt:sel,iterations:150000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+let tSauve=null;
+function sauver(){clearTimeout(tSauve);tSauve=setTimeout(enregistrer,200)}
+async function enregistrer(){
+  clearTimeout(tSauve);
+  if(!S||!ACTIF||!CLEF){ecrireRoot();return}
+  const g=ROOT.groupes[ACTIF]||(ROOT.groupes[ACTIF]={});
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},CLEF,new TextEncoder().encode(JSON.stringify(S)));
+  Object.assign(g,{classe:S.classe,noms:S.eleves.map(e=>e.nom.split(/\s+/)[0]),iv:b64(iv),data:b64(ct),vu:Date.now()});delete g.clair;
+  ecrireRoot();
+}
+async function ouvrir(id,code){
+  const g=ROOT.groupes[id];
+  if(g.clair){const sel=crypto.getRandomValues(new Uint8Array(16));g.sel=b64(sel);CLEF=await deriver(code,sel);S=Object.assign(vide(),g.clair)}
+  else{const k=await deriver(code,deb64(g.sel));
+    let txt;try{txt=new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:deb64(g.iv)},k,deb64(g.data)))}catch(e){throw new Error('Code faux.')}
+    CLEF=k;S=Object.assign(vide(),JSON.parse(txt))}
+  ACTIF=id;
+  if(S.classe&&ROOT.classes[S.classe])S.cfg=JSON.parse(JSON.stringify(ROOT.classes[S.classe])); // liste de classe la plus récente
+  if(!S.eleves.length)S.tab='groupe';else if(S.tab==='groupe')S.tab='seance';
+  await enregistrer();
+}
+async function verrouiller(){await enregistrer();S=null;ACTIF=null;CLEF=null}
+async function nouveauGroupe(classe,code){
+  const id=uid(),sel=crypto.getRandomValues(new Uint8Array(16));
+  ROOT.groupes[id]={classe:classe||'',noms:[],sel:b64(sel)};
+  CLEF=await deriver(code,sel);ACTIF=id;S=vide();
+  const C=classe&&ROOT.classes[classe];if(C){S.cfg=JSON.parse(JSON.stringify(C));S.classe=classe}
+  S.tab='groupe';await enregistrer();
+}
+// Verrouillage automatique : tablette mise en veille ou 10 min sans toucher l'écran.
+let tInactif=null;
+function reveil(){clearTimeout(tInactif);if(S)tInactif=setTimeout(async()=>{if(S){await verrouiller();fermer();rendre();toast('Carnet verrouillé (10 min sans activité).')}},10*60*1000)}
+['click','input','touchstart'].forEach(e=>document.addEventListener(e,reveil,{passive:true}));
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)enregistrer()});
+/* Saisie du code secret */
+let CODE_CB=null;
+function demanderCode(titre,texte,cb,creer){
+  CODE_CB={cb,creer,premier:null};
+  fen(`<h3>${esc(titre)}</h3><p class="small muted">${esc(texte)}</p>
+    <input id="code" class="code" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="Code à 4 chiffres">
+    <p id="code-msg" class="small" style="min-height:1.4em;font-weight:700;color:var(--alerte)"></p>
+    <div class="rangee" style="justify-content:space-between"><button class="bt" type="button" data-act="fermer">Annuler</button><button class="bt noir" type="button" data-act="codeok">Valider</button></div>
+    ${creer?'':'<p class="small" style="margin-top:12px"><button class="lien" type="button" data-act="codeoubli">Code oublié ?</button></p>'}`);
+  setTimeout(()=>{const i=$('#code');if(i)i.focus()},50);
+}
+async function validerCode(){
+  const i=$('#code'),m=$('#code-msg'),c=(i.value||'').trim();
+  if(!/^\d{4}$/.test(c)){m.textContent='4 chiffres.';return}
+  const st=CODE_CB;
+  if(st.creer&&!st.premier){st.premier=c;i.value='';m.textContent='Retape le même code pour confirmer.';i.focus();return}
+  if(st.creer&&st.premier!==c){st.premier=null;i.value='';m.textContent='Les deux codes sont différents : recommence.';return}
+  m.textContent='Ouverture…';
+  try{await st.cb(c);CODE_CB=null;fermer();rendre();window.scrollTo(0,0)}catch(e){i.value='';m.textContent=e.message||'Erreur';i.focus()}
+}
+
 const elv=()=>S.eleves[S.cur]||S.eleves[0];
 function rec(id,n,creer=true){
   S.d[id]=S.d[id]||{};
@@ -67,10 +128,11 @@ function valideQuand(id,k){for(const p of seancesDe(id)){const r=S.d[id][p];if(r
 /* ---------- Affichage ---------- */
 function vChoix(){
   const G=Object.entries(ROOT.groupes).sort((a,b)=>(a[1].classe||'').localeCompare(b[1].classe||'','fr')||(b[1].vu||0)-(a[1].vu||0));
+  const nom=g=>g.noms&&g.noms.length?g.noms.map(esc).join(' · '):'Groupe à compléter';
   const parC={};G.forEach(([id,g])=>(parC[g.classe||'Sans classe']=parC[g.classe||'Sans classe']||[]).push([id,g]));
   const C=Object.keys(ROOT.classes).sort();
-  return `<h2>Qui utilise la tablette ?</h2>
-  ${G.length?Object.entries(parC).map(([c,L])=>`<section class="carte"><h3>${esc(c)}</h3><div class="choix">${L.map(([id,g])=>`<button type="button" class="bt grp" data-act="choisir" data-v="${id}">${g.eleves.length?g.eleves.map(e=>esc(e.nom.split(/\s+/)[0]||e.nom)).join(' · '):'Groupe à compléter'}<small>${g.eleves.map(e=>esc(e.nom)).join(', ')}</small></button>`).join('')}</div></section>`).join(''):'<p class="muted">Aucun groupe sur cette tablette.</p>'}
+  return `<h2>Qui utilise la tablette ?</h2><p class="small muted">Chaque groupe ouvre son carnet avec son code secret.</p>
+  ${G.length?Object.entries(parC).map(([c,L])=>`<section class="carte"><h3>${esc(c)}</h3><div class="choix">${L.map(([id,g])=>`<button type="button" class="bt grp" data-act="choisir" data-v="${id}">🔒 ${nom(g)}<small>${g.clair?'à protéger par un code':'code secret du groupe'}</small></button>`).join('')}</div></section>`).join(''):'<p class="muted">Aucun groupe sur cette tablette.</p>'}
   <section class="carte"><h3>Nouveau groupe</h3>
     ${C.length?`<p class="small muted">Classes déjà enregistrées sur la tablette :</p><div class="rangee">${C.map(c=>`<button type="button" class="bt" data-act="nouveau" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div><p class="small muted" style="margin-top:10px">Autre classe :</p>`:''}
     <button type="button" class="bt orange" data-act="nouveauqr">Scanner le QR de la classe</button></section>`;
@@ -391,9 +453,8 @@ function recevoirClasse(o){
   if(o.t!=='C')throw new Error('Ce n’est pas le QR de la classe.');
   const cfg={classe:o.c,eleves:o.l||[],lien:o.u||''};
   ROOT.classes[o.c]=cfg;
-  // mise à jour de la liste pour tous les groupes de cette classe
-  Object.values(ROOT.groupes).forEach(g=>{if(g.classe===o.c)g.cfg=JSON.parse(JSON.stringify(cfg))});
-  if(!S||(S.eleves.length&&S.classe&&S.classe!==o.c)){nouveauGroupe(o.c);rendre();return 'Nouveau groupe en '+o.c+' : choisissez vos noms.'}
+  ecrireRoot(); // les autres groupes de la classe recevront la nouvelle liste à leur ouverture
+  if(!S||(S.eleves.length&&S.classe&&S.classe!==o.c)){setTimeout(()=>{if(S)verrouiller().then(rendre);demanderCode('Nouveau groupe · '+o.c,'Choisissez un code secret de 4 chiffres. Retenez-le : il sera demandé à chaque cours.',c=>nouveauGroupe(o.c,c),true)},300);return 'Classe '+o.c+' enregistrée.'}
   S.cfg=JSON.parse(JSON.stringify(cfg));S.classe=o.c;sauver();rendre();
   return 'Classe '+o.c+' : '+(o.l||[]).length+' élèves.';
 }
@@ -475,10 +536,18 @@ document.addEventListener('click',async ev=>{
   const b=ev.target.closest('[data-act]');if(!b)return;
   const a=b.dataset.act,v=b.dataset.v;
   if(a==='fermerVoile'){if(ev.target===b&&!PENDING)fermer();return}
-  if(a==='choisir'){activer(v);rendre();window.scrollTo(0,0);return}
-  if(a==='nouveau'){nouveauGroupe(v);rendre();return}
+  if(a==='choisir'){const g=ROOT.groupes[v];
+    if(g.clair)demanderCode('Protéger votre carnet','Choisissez un code secret de 4 chiffres pour votre groupe. Retenez-le : il sera demandé à chaque cours.',c=>ouvrir(v,c),true);
+    else demanderCode('Code du groupe '+(g.noms||[]).join(' · '),'Tapez votre code secret à 4 chiffres.',c=>ouvrir(v,c),false);
+    CODE_CB.id=v;return}
+  if(a==='nouveau'){demanderCode('Nouveau groupe · '+v,'Choisissez un code secret de 4 chiffres. Retenez-le : il sera demandé à chaque cours, et personne d’autre ne pourra ouvrir votre carnet.',c=>nouveauGroupe(v,c),true);return}
+  if(a==='codeok'){await validerCode();return}
+  if(a==='codeoubli'){const id=CODE_CB&&CODE_CB.id;if(!id)return;
+    fen(`<h3>Code oublié</h3><p>Sans le code, ce carnet ne peut pas être ouvert, même par le professeur.</p><p class="small">Supprimez-le et créez un nouveau groupe. Le professeur vous donnera un <b>QR de reprise</b> pour chaque élève (étoile, axes, matchs à thème validés, poules) : dans le nouveau groupe, Mon groupe → « Scanner le QR de l’élève qui arrive ».</p>
+      <div class="rangee" style="justify-content:space-between"><button class="bt" type="button" data-act="fermer">Annuler</button><button class="bt danger" type="button" data-act="suppridoublie" data-v="${id}">Supprimer ce carnet</button></div>`);return}
+  if(a==='suppridoublie'){if(!confirm('Supprimer définitivement ce carnet ?'))return;delete ROOT.groupes[v];ecrireRoot();fermer();rendre();return}
   if(a==='nouveauqr'||(a==='qrclasse'&&!S)){TTQR.scanner(async t=>recevoirClasse(await TTQR.decoder(t)),{titre:'QR de la classe',aide:'Scanne le QR affiché par le professeur.'});return}
-  if(a==='changer'){fermer();sauver();ROOT.actif=null;S=null;sauver();rendre();window.scrollTo(0,0);return}
+  if(a==='changer'){fermer();await verrouiller();rendre();window.scrollTo(0,0);return}
   if(a==='video'){ouvrirVideo(b.dataset.u,b.dataset.t);return}
   if(a==='fermer'){fermer();return}
   if(!S)return;
@@ -503,7 +572,7 @@ document.addEventListener('click',async ev=>{
       L.forEach(e=>{const o=ancien[e.id];if(o&&o!==e.nom)Object.values(S.poules).forEach(P=>{const i=P.joueurs.indexOf(o);if(i>=0)P.joueurs[i]=e.nom})});
       S.classe=cl;S.eleves=L;S.cur=0;S.tab='seance';toast('Groupe enregistré.');break}
     case 'sauvegarde':telecharger('Carnet_TT_'+(TTL.slug(S.classe)||'groupe')+'_'+today()+'.json',JSON.stringify(Object.assign({carnetTT:1},S)));return;
-    case 'toutEffacer':if(!confirm('Supprimer ce groupe et toutes ses séances de la tablette ? Envoie d’abord tes fichiers.'))return;delete ROOT.groupes[ROOT.actif];ROOT.actif=null;S=null;sauver();rendre();return;
+    case 'toutEffacer':if(!confirm('Supprimer ce groupe et toutes ses séances de la tablette ? Envoie d’abord tes fichiers.'))return;delete ROOT.groupes[ACTIF];S=null;ACTIF=null;CLEF=null;ecrireRoot();rendre();return;
     case 'niv':{const r=rec(E.id,n),x=r.exos[+b.dataset.i];x.niv=x.niv===+v?0:+v;touche(r);break}
     case 'addex':{const r=rec(E.id,n);r.exos.push({slot:+b.dataset.slot,ex:null,niv:0,rq:''});break}
     case 'delex':{const r=rec(E.id,n);r.exos.splice(+b.dataset.i,1);break}
@@ -547,7 +616,8 @@ document.addEventListener('change',async ev=>{
   const t=ev.target;
   if(t.id==='reprise'&&t.files[0]){
     try{const o=JSON.parse(await t.files[0].text());if(!o.carnetTT||!o.v)throw 0;
-      delete o.carnetTT;const id=uid();ROOT.groupes[id]=Object.assign(vide(),o);if(o.cfg)ROOT.classes[o.cfg.classe]=o.cfg;activer(id);rendre();toast('Carnet repris : nouveau groupe sur cette tablette.')}
+      delete o.carnetTT;if(o.cfg)ROOT.classes[o.cfg.classe]=o.cfg;
+      await verrouiller();const id=uid();ROOT.groupes[id]={classe:o.classe||'',noms:(o.eleves||[]).map(e=>e.nom.split(/\s+/)[0]),clair:o};ecrireRoot();rendre();toast('Carnet repris : choisissez-le et donnez-lui un code.')}
     catch(e){toast('Ce fichier n’est pas un carnet de groupe.')}
     return;
   }
@@ -568,6 +638,7 @@ document.addEventListener('change',async ev=>{
   }
   sauver();rendre();
 });
+document.addEventListener('keydown',ev=>{if(ev.target&&ev.target.id==='code'&&ev.key==='Enter'){ev.preventDefault();validerCode()}});
 document.addEventListener('input',ev=>{
   const t=ev.target,c=t.dataset.ch;if(!c||!S||!S.eleves.length)return;
   const E=elv(),n=S.seance;
