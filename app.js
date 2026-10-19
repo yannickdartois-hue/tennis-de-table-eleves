@@ -151,7 +151,7 @@ function vChoix(){
   ${G.length?Object.entries(parC).map(([c,L])=>`<section class="carte"><h3>${esc(c)}</h3><div class="choix">${L.map(([id,g])=>{const ne=g.nonEnv&&g.nonEnv.length;return `<button type="button" class="bt grp${ne?' nonenv':''}" data-act="choisir" data-v="${id}">🔒 ${nom(g)}<small>${ne?'⚠ Séance '+g.nonEnv.join(', ')+' non envoyée':g.clair?'à protéger par un code':'code secret du groupe'}</small></button>`}).join('')}</div></section>`).join(''):'<p class="muted">Aucun groupe sur cette tablette.</p>'}
   <section class="carte"><h3>Nouveau groupe</h3>
     ${C.length?`<p class="small muted">Classes déjà enregistrées sur la tablette :</p><div class="rangee">${C.map(c=>`<button type="button" class="bt" data-act="nouveau" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div><p class="small muted" style="margin-top:10px">Autre classe :</p>`:''}
-    <button type="button" class="bt orange" data-act="nouveauqr">Scanner le QR de la classe</button></section>`;
+    <button type="button" class="bt orange" data-act="nouveauqr">Scanner le QR de la classe</button></section>`+(window.boutonDemo?boutonDemo():'');
 }
 function rendre(){
   document.querySelectorAll('.barre .bt').forEach(x=>x.hidden=!S);

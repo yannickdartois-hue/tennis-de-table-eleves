@@ -146,6 +146,10 @@ table.prog .pts span{display:inline-flex;align-items:flex-end;gap:1px;margin-rig
 .tb-niv{list-style:none;padding:0}.tb-niv li{border-left:10px solid;padding:6px 10px;margin:6px 0;background:var(--sol);border-radius:8px}
 #maj{position:fixed;left:12px;right:12px;top:calc(10px + env(safe-area-inset-top));z-index:70;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--encre);color:var(--sur-encre);padding:10px 14px;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.3)}
 #maj span{flex:1;font-weight:700}
+.demo-bandeau{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;border-radius:12px;background:#FFF3C4;color:#5C4300;border:2px dashed #C99A00}
+.demo-bandeau span{flex:1}
+@media (prefers-color-scheme:dark){.demo-bandeau{background:#3A3010;color:#FFE08A;border-color:#8A6D00}}
+.demo-carte{border-style:dashed}
 nav.onglets button.ici{color:var(--ligne-fonce);box-shadow:inset 0 4px 0 var(--ligne)}
 /* Fenêtres */
 .voile{position:fixed;inset:0;background:rgba(10,15,25,.55);display:flex;align-items:flex-end;justify-content:center;z-index:45;padding:12px}
@@ -250,6 +254,7 @@ ul.nvl{list-style:none;padding-left:0}ul.nvl li{display:flex;gap:8px;align-items
 <script src="scan.js"></script>
 <script src="app.js"></script>
 <script src="eleve-plus.js"></script>
+<script src="demo.js"></script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
 </body>
 </html>

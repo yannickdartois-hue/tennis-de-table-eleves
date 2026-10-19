@@ -61,3 +61,6 @@ Onglet Poule : boutons « Tour 1 à 4 ». D'habitude un seul tour ; le jour de l
 - **Temps mort** guidé (1 min, conseils tirés des codes et du projet), **chronos** repérés dans les consignes (« 2 min », « 30 s »), **grand écran** pour poser la tablette sur la table, icônes.
 - **Mise à jour visible** : bandeau « Nouvelle version » quand le service worker change.
 - **Copie de secours chiffrée** : le QR de classe contient la clé publique du prof (`k`, ECDH P-256). À chaque envoi en ligne, un fichier `secours_….json` (carnet complet chiffré AES-GCM) part avec les séances ; seul l'outil prof qui a créé la clé peut l'ouvrir.
+
+## Mode démo (19/10/2026) — `demo.js`
+Bouton « Essayer l'appli (démo) » à l'accueil, ou adresse `…/tennis-de-table-eleves/?demo`. Groupe fictif pré-rempli (étoiles, exercices, poules, codes du coach), séance 3 en cours. Rien n'est enregistré sur la tablette ni envoyé ; scan de QR, transferts, sauvegarde et effacement sont désactivés. « Quitter la démo » ou « Changer » revient à l'accueil.

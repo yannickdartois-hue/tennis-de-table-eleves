@@ -146,10 +146,11 @@ function durees(txt){ // « 2 min », « 30 s », « 1 min 30 », « 2 mi-temps 
 function texteFiche(t,n){if(t==='mt'){const T=theme(+n);return T?T.match:''}const i=exInfo(n);return i?[i.e.c,i.e.j,i.e.p].join(' '):''}
 function outilsFiche(t,n){
   const D=durees(texteFiche(t,n));
-  return `<div class="rangee outils">${D.map(d=>`<button type="button" class="bt mini" data-act="chrono" data-v="${d}">⏱ ${duree(d)}</button>`).join('')}
+  return `<div class="rangee outils">${D.map(d=>`<button type="button" class="bt mini" data-act="chrono" data-v="${d}">⏱ ${dureeCh(d)}</button>`).join('')}
     ${D.length?'':`<button type="button" class="bt mini" data-act="chronoChoix">⏱ Chrono</button>`}
     <button type="button" class="bt mini" data-act="table" data-t="${t}" data-v="${esc(n)}">⛶ Grand écran</button></div>`;
 }
+const dureeCh=d=>d>=60&&d%60===0?d/60+' min':duree(d);
 let CH=null; // {fin, reste, pause, total}
 function chrono(sec){
   CH={total:sec,fin:Date.now()+sec*1000,reste:sec*1000,pause:false};peindreChrono();
@@ -186,7 +187,7 @@ async function modeTable(t,n){
       <ul class="tb-niv">${criteresEx(e).map(r=>`<li style="border-color:${COUL[r.c-1]}"><i class="dot p${r.c}"></i> ${esc(r.t)}</li>`).join('')}</ul>`}
   const D=durees(texteFiche(t,n));
   let z=document.getElementById('table-ecran');if(!z){z=document.createElement('div');z.id='table-ecran';document.body.appendChild(z)}
-  z.innerHTML=`<div class="tb-haut">${D.map(d=>`<button type="button" class="bt" data-act="chrono" data-v="${d}">⏱ ${duree(d)}</button>`).join('')}<button type="button" class="bt noir" data-act="tablefermer">✕ Fermer</button></div><div class="tb-corps">${h}</div>`;
+  z.innerHTML=`<div class="tb-haut">${D.map(d=>`<button type="button" class="bt" data-act="chrono" data-v="${d}">⏱ ${dureeCh(d)}</button>`).join('')}<button type="button" class="bt noir" data-act="tablefermer">✕ Fermer</button></div><div class="tb-corps">${h}</div>`;
   try{if(document.documentElement.requestFullscreen&&!document.fullscreenElement)await document.documentElement.requestFullscreen()}catch(e){}
   try{if(navigator.wakeLock)VEILLE=await navigator.wakeLock.request('screen')}catch(e){}
 }
