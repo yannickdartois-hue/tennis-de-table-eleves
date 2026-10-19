@@ -63,5 +63,18 @@ function scanner(onCode,opts){
   }).catch(()=>message('Autorise l’accès à la caméra (réglages du navigateur), puis réessaie.',false));
   return fermer;
 }
-root.TTQR={decoder,scanner};
+// Objet → texte de QR compressé (même format que l'appli élève)
+async function encoder(o){
+  const raw=new TextEncoder().encode(JSON.stringify(o));
+  const b=u=>{let s='';u.forEach(c=>s+=String.fromCharCode(c));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
+  try{if(typeof CompressionStream==='function'){const buf=await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer();return 'TTE1:'+b(new Uint8Array(buf))}}catch(e){}
+  return 'TTE0:'+b(raw);
+}
+function svgQR(txt){
+  const q=qrcode(0,'L');q.addData(txt,'Byte');q.make();
+  const c=q.getModuleCount(),m=4;let p='';
+  for(let y=0;y<c;y++)for(let x=0;x<c;x++)if(q.isDark(y,x))p+=`M${x+m} ${y+m}h1v1h-1z`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${c+2*m} ${c+2*m}" shape-rendering="crispEdges" role="img" aria-label="QR code"><rect width="100%" height="100%" fill="#fff"/><path d="${p}" fill="#000"/></svg>`;
+}
+root.TTQR={decoder,scanner,encoder,svgQR};
 })(window);

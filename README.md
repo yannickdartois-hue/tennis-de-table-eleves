@@ -34,3 +34,12 @@ Adresse : `https://yannickdartois-hue.github.io/tennis-de-table-eleves/prof.html
 - **Exporter** : 3 fichiers CSV pour Excel (bilan par élève, tournoi séance par séance, séances de travail).
 - Données gardées sur l'appareil du prof ; sauvegarde / restauration pour passer de l'iPad au PC.
 Bibliothèques : jsQR (Apache 2.0), JSZip (MIT).
+
+## Organisation par année (19/10/2026)
+Rien à modifier dans le code d'une année sur l'autre.
+1. **Rentrée** : outil prof → onglet **Classes** → importer l'export Pronote de chaque classe (xlsx, xls ou csv ; ou coller la liste). Coller le lien d'envoi en ligne de la classe (Nuage, « Demande de fichier »).
+2. **1er cours** : bouton **QR de démarrage** de la classe ; chaque téléphone de groupe le scanne (Groupe → « Scanner le QR de la classe »). Les élèves choisissent leur nom dans la liste.
+3. **Chaque séance** : les élèves envoient (QR ou en ligne) ; onglets **Appel** (présents, dispensés, rien reçu, corrections), **Tournoi** (poules + classement de la classe), **Élèves** (classement du cycle = moyenne des rangs dans la classe).
+4. **Fin d'année** : Classes → « Archiver l'année et repartir à zéro ».
+Dispensés : case « Aujourd'hui je suis dispensé(e) » ; axes analyse, coach ou arbitrage seulement ; arbitre de sa poule (« Arbitre dispensé »).
+Bibliothèque ajoutée : SheetJS (Apache 2.0) pour lire les fichiers Pronote.
