@@ -98,6 +98,16 @@ function optExos(k,cur){
   const a=axe(k);if(!a)return '';
   return `<option value="">— N° d’exercice —</option>`+a.th.map(n=>{const t=theme(n);return `<optgroup label="Thème ${n} · ${esc(t.t)}">${t.ex.map(e=>`<option value="${esc(e.n)}"${e.n===cur?' selected':''}>${esc(e.n)} · ${esc(e.t)}</option>`).join('')}</optgroup>`}).join('');
 }
+/* Critères de la fiche GAREEPS par couleur. Les fiches donnent 3 niveaux (jaune, vert, vert foncé) pour les thèmes 2 et 6,
+   2 niveaux (vert, vert foncé) pour les autres, 1 seul pour les rôles. Rouge = le premier niveau n'est pas encore atteint. */
+function criteresEx(e){
+  const nv=e.nv||[],cols=nv.length===3?[2,3,4]:nv.length===2?[3,4]:[4];
+  return [{c:1,t:'Pas encore atteint : '+(nv[0]?'« '+nv[0]+' »':'le niveau demandé')}].concat(nv.map((t,i)=>({c:cols[i],t})));
+}
+function critereDe(e,c){const r=criteresEx(e).find(x=>x.c===c);return r?r.t:''}
+function choixCriteres(e,i,v){
+  return `<div class="crit" role="radiogroup" aria-label="Niveau atteint">${criteresEx(e).map(r=>`<button type="button" role="radio" aria-checked="${v===r.c}" data-act="niv" data-i="${i}" data-v="${r.c}" class="${v===r.c?'on':''}"><i class="p${r.c}"></i><span><small>${esc(GA.deg[r.c-1])}</small>${esc(r.t)}</span><em aria-hidden="true">${v===r.c?'✓':''}</em></button>`).join('')}</div>`;
+}
 function puces(nb,i){const l=nb===3?['●','●●','●●●']:nb===2?['●●','●●●']:['●●●'];return l[i]||'●●●'}
 const IMG_EX=new Set(['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31','32','33','34','A1','A2','A3','A4','R1','R2','R3','R4','R5','R6','R7','R8','R9','R10','R11']);
 const IMG_MT=new Set([1,2,3,4,5,6,7]);
@@ -121,7 +131,7 @@ function fiche(n){
     ${e.j?`<dt>Joueur</dt><dd>${esc(e.j)}</dd>`:''}
     ${e.p?`<dt>Partenaires</dt><dd>${esc(e.p)}</dd>`:''}
     ${e.cr&&e.cr.length?`<dt>💡 Critères</dt><dd><ul>${e.cr.map(c=>`<li>${esc(c)}</li>`).join('')}</ul></dd>`:''}
-    ${e.nv&&e.nv.length?`<dt>Niveaux à valider</dt><dd><ul>${e.nv.map((v,i)=>`<li><b>${puces(e.nv.length,i)}</b> ${esc(v)}</li>`).join('')}</ul></dd>`:''}
+    ${e.nv&&e.nv.length?`<dt>Niveaux à valider</dt><dd><ul class="nvl">${criteresEx(e).slice(1).map(r=>`<li><i class="dot p${r.c}"></i> ${esc(r.t)}</li>`).join('')}</ul></dd>`:''}
   </dl></details>`;
 }
 function pastilles(act,attrs,v){
@@ -142,7 +152,7 @@ function vSeance(){
       r.exos.forEach((x,i)=>{if(x.slot!==sl)return;
         const solo=r.exos.filter(y=>y.slot===sl).length===1;
         h+=`<div class="exo"><label class="ch">Exercice choisi</label><select data-ch="ex" data-i="${i}" aria-label="Numéro d’exercice">${optExos(k,x.ex)}</select>
-          ${x.ex?fiche(x.ex)+`<label class="ch" style="margin-top:12px">Niveau atteint</label>${pastilles('niv',`data-i="${i}"`,x.niv)}
+          ${x.ex?fiche(x.ex)+`<label class="ch" style="margin-top:12px">J’ai atteint… <span class="small muted" style="font-weight:400">(touche ta ligne)</span></label>${choixCriteres(exInfo(x.ex).e,i,x.niv)}
           <label class="ch">Remarque</label><input type="text" data-ch="exrq" data-i="${i}" value="${esc(x.rq)}" placeholder="ex. 6 sur 10, revers à revoir">`:''}
           ${solo?'':`<div style="margin-top:8px"><button class="bt mini" type="button" data-act="delex" data-i="${i}">Retirer cet exercice</button></div>`}</div>`;
       });
@@ -269,7 +279,7 @@ function exportEleve(E,n){
   return {app:'tennis-de-table-eleves',version:VERSION,activite:'Tennis de table',classe:S.classe,eleve:E.nom,seance:n,date:r.date||today(),exportedAt:new Date().toISOString(),
     axes:r.axes.filter(Boolean).map(k=>{const a=axe(k);return {axe:k,nom:a.n,afl:a.afl,valideAujourdhui:!!r.val[k],valideDepuisSeance:valideQuand(E.id,k)}}),
     changementsAxe:r.chg.map(c=>({de:c.de,vers:c.vers,motif:c.motif,quand:c.ts})),
-    exercices:r.exos.filter(x=>x.ex).map(x=>{const i=exInfo(x.ex);return {axe:r.axes[x.slot],exercice:x.ex,theme:i?i.t.n:null,titre:i?i.e.t:'',niveau:x.niv||null,niveauLibelle:x.niv?GA.deg[x.niv-1]:'',remarque:x.rq||''}}),
+    exercices:r.exos.filter(x=>x.ex).map(x=>{const i=exInfo(x.ex);return {axe:r.axes[x.slot],exercice:x.ex,theme:i?i.t.n:null,titre:i?i.e.t:'',niveau:x.niv||null,niveauLibelle:x.niv?GA.deg[x.niv-1]:'',critereAtteint:x.niv&&i?critereDe(i.e,x.niv):'',remarque:x.rq||''}}),
     bilan:r.rq||'',
     etoile:r.etoile&&Object.keys(r.etoile).length?GA.axes.map(a=>({axe:a.k,nom:a.n,degre:r.etoile[a.k]||null,libelle:r.etoile[a.k]?GA.deg[r.etoile[a.k]-1]:''})):null,
     grilleCoach:r.grille?Object.assign({scoreObserve:r.grille.c1+2*r.grille.c2+3*r.grille.c3},r.grille):null,

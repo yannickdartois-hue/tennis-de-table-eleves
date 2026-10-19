@@ -1,6 +1,6 @@
 /* Hors ligne : l'appli est gardée sur le téléphone après la 1re ouverture.
-   Après une modification, augmenter VERSION (tte-v1 → tte-v3). */
-const VERSION='tte-v3';
+   Après une modification, augmenter VERSION (tte-v1 → tte-v4). */
+const VERSION='tte-v4';
 const FICHIERS=['./','index.html','app.js','logique.js','donnees.js','qrcode.js','videos.js','principes.js','manifest.webmanifest',
   'icon-32.png','icon-180.png','icon-192.png','icon-512.png',
   'polices/archivo.woff2','polices/atkinson-400.woff2','polices/atkinson-700.woff2',
