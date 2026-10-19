@@ -372,19 +372,21 @@ function htmlClassement(P){
 }
 function formPoule(P){
   const disp=S.eleves.filter(e=>{const r=(S.d[e.id]||{})[S.seance];return r&&r.disp}).map(e=>e.nom);
-  const d=P||{num:1,fmt:'2',mouv:true,joueurs:S.eleves.map(e=>e.nom).filter(n=>!disp.includes(n)),arbDisp:disp[0]||''};
+  const prop=!P&&S.propP&&S.propP[pk()];
+  const d=P||prop||{num:1,fmt:'2',mouv:true,joueurs:S.eleves.map(e=>e.nom).filter(n=>!disp.includes(n)),arbDisp:disp[0]||''};
   const J=d.joueurs.slice();while(J.length<3)J.push('');
   const liste=S.cfg?S.cfg.eleves:null;
   const champ=(j,i)=>liste?`<select class="pj" aria-label="Joueur ${i+1}" style="margin-bottom:6px"><option value="">—</option>${j&&!liste.includes(j)?`<option selected>${esc(j)}</option>`:''}${liste.map(n=>`<option${n===j?' selected':''}>${esc(n)}</option>`).join('')}</select>`
     :`<input type="text" class="pj" value="${esc(j)}" placeholder="Prénom Nom" style="margin-bottom:6px" autocomplete="off" aria-label="Joueur ${i+1}">`;
   return `<h2>Ma poule · séance ${S.seance}${(S.tour||1)>1?' · tour '+S.tour:''}</h2>
-  <p class="muted small">Le professeur donne les poules. Recopiez votre poule ici, sur un seul téléphone par poule. Écris chaque nom en entier.</p>
+  <p class="muted small">Le professeur donne les poules. Une seule tablette par poule : celle posée sur la table.</p>
+  ${window.boutonQRPoule?boutonQRPoule(prop):''}
   <div class="carte">
     <label class="ch" for="p-num">Numéro de poule</label><select id="p-num">${[...Array(15)].map((_,i)=>`<option${d.num===i+1?' selected':''}>${i+1}</option>`).join('')}</select>
     <label class="ch" for="p-fmt">Format des matchs</label><select id="p-fmt"><option value="1"${d.fmt==='1'?' selected':''}>1 manche</option><option value="2"${d.fmt==='2'?' selected':''}>2 manches gagnantes</option><option value="3"${d.fmt==='3'?' selected':''}>3 manches gagnantes</option></select>
     <label class="ch">Joueurs (2 à 6)</label><div id="p-joueurs">${J.map(champ).join('')}</div>
     <div class="rangee"><button class="bt mini" type="button" data-act="pplus">＋ Un joueur</button></div>
-    <label class="ch" for="p-arb">Arbitre dispensé(e) (facultatif)</label><select id="p-arb"><option value="">— aucun —</option>${(liste||S.eleves.map(e=>e.nom)).map(n=>`<option${n===d.arbDisp?' selected':''}>${esc(n)}</option>`).join('')}</select>
+    <label class="ch" for="p-arb">Arbitre dispensé(e) (facultatif)</label><select id="p-arb"><option value="">— aucun —</option>${(d.arbDisp&&!(liste||S.eleves.map(e=>e.nom)).includes(d.arbDisp)?[d.arbDisp]:[]).concat(liste||S.eleves.map(e=>e.nom)).map(n=>`<option${n===d.arbDisp?' selected':''}>${esc(n)}</option>`).join('')}</select>
     <label class="coche"><input type="checkbox" id="p-mouv" ${d.mouv?'checked':''}> Le 1er monte, le dernier descend</label>
     ${P&&P.matchs&&P.matchs.some(m=>(m.m||[]).length||m.f)?'<p class="avert">Si tu changes les joueurs, les scores déjà saisis sont effacés.</p>':''}
     <div class="rangee" style="margin-top:12px"><button class="bt orange" type="button" data-act="pcreer">Créer les matchs</button>${P?'<button class="bt" type="button" data-act="pannuler">Annuler</button>':''}</div>
@@ -687,7 +689,7 @@ document.addEventListener('click',async ev=>{
       PENDING=null;fermer();break}
     case 'pplus':{const z=$('#p-joueurs');if(z.querySelectorAll('input').length>=6){toast('6 joueurs au maximum.');return}
       z.insertAdjacentHTML('beforeend',S.cfg?`<select class="pj" style="margin-bottom:6px"><option value="">—</option>${S.cfg.eleves.map(n=>`<option>${esc(n)}</option>`).join('')}</select>`:'<input type="text" class="pj" placeholder="Prénom Nom" style="margin-bottom:6px" autocomplete="off">');return}
-    case 'pcreer':{
+    case 'pcreer':{if(S.propP)delete S.propP[pk()];
       const J=[...document.querySelectorAll('.pj')].map(i=>i.value.trim().replace(/\s+/g,' ')).filter(Boolean);
       if(J.length<2){toast('Au moins 2 joueurs.');return}
       if(new Set(J.map(j=>j.toLowerCase())).size!==J.length){toast('Deux joueurs ont le même nom.');return}

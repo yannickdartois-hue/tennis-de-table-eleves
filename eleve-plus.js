@@ -224,10 +224,34 @@ if('serviceWorker' in navigator){
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{})});
 }
 
+/* ---------- QR de poule préparé par le prof ---------- */
+function boutonQRPoule(prop){
+  return prop?`<p class="pas">📷 Poule ${prop.num} remplie par le QR du professeur. Vérifie les présents (absent ? dispensé ?), corrige si besoin, puis « Créer les matchs ».</p>`
+    :`<div class="rangee" style="margin-bottom:10px"><button type="button" class="bt orange" data-act="scanpoule">📷 Scanner le QR de la poule</button><span class="small muted">ou saisis la poule à la main ci-dessous</span></div>`;
+}
+async function lirePoule(txt){
+  const o=await TTQR.decoder(txt);
+  if(o.t!=='Q')throw new Error('Ce n’est pas un QR de poule.');
+  if(S.classe&&o.c&&norm2(o.c)!==norm2(S.classe)&&!confirm('Ce QR est pour la classe '+o.c+'. Utiliser quand même ?'))throw new Error('QR d’une autre classe.');
+  const [num,fmt,joueurs,arbDisp,mouv]=o.p;
+  if(o.s&&o.s!==S.seance){S.seance=o.s;S.jours=S.jours||{};S.jours[today()]=o.s}
+  S.tour=o.tr||1;
+  const k=pk(),P=S.poules[k];
+  if(P&&P.matchs&&P.matchs.some(m=>(m.m||[]).length||m.f)){
+    if(!confirm('Une poule avec des scores est déjà saisie pour ce tour sur cette tablette. La remplacer ?'))throw new Error('Rien changé.');
+    delete S.poules[k];
+  }else if(P)delete S.poules[k];
+  S.propP=S.propP||{};S.propP[k]={num,fmt:String(fmt||'2'),mouv:mouv!==0,joueurs:joueurs.slice(),arbDisp:arbDisp||''};
+  S.tab='poule';sauver();rendre();window.scrollTo(0,0);
+  return 'Poule '+num+' : '+joueurs.length+' joueurs';
+}
+const norm2=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'');
+
 /* ---------- Actions ---------- */
 window.EPLUS={
   async clic(a,v,b){
     switch(a){
+      case 'scanpoule':TTQR.scanner(lirePoule,{titre:'QR de la poule',aide:'Vise le QR de la poule montré ou imprimé par le professeur.'});return true;
       case 'pasEx':{const r=rec(elv().id,S.seance);r.exos.push({slot:+b.dataset.slot,ex:v,niv:0,rq:''});touche(r);sauver();rendre();toast('Exercice '+v+' ajouté.');return true}
       case 'mqcoach':{const P=S.poules[pk()],m=P.matchs[MQ.i];m.coach=!m.coach;MQ.code=null;sauver();peindreMarque();return true}
       case 'mqcode':noterCode(v);return true;

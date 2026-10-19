@@ -64,3 +64,6 @@ Onglet Poule : boutons « Tour 1 à 4 ». D'habitude un seul tour ; le jour de l
 
 ## Mode démo (19/10/2026) — `demo.js`
 Bouton « Essayer l'appli (démo) » à l'accueil, ou adresse `…/tennis-de-table-eleves/?demo`. Groupe fictif pré-rempli (étoiles, exercices, poules, codes du coach), séance 3 en cours. Rien n'est enregistré sur la tablette ni envoyé ; scan de QR, transferts, sauvegarde et effacement sont désactivés. « Quitter la démo » ou « Changer » revient à l'accueil.
+
+## QR de poule (19/10/2026)
+Onglet Poule → « Scanner le QR de la poule » (préparé par le prof) : séance, tour, numéro, format, joueurs et arbitre dispensé sont pré-remplis ; les élèves corrigent si besoin puis « Créer les matchs ».
