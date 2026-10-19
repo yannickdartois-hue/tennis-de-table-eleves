@@ -23,10 +23,23 @@ const famCl=a=>a?{AFL1:'a1',AFL2:'a2',AFL3:'a3'}[a.afl]:'';
 function exInfo(n){for(const t of GA.themes){const e=t.ex.find(x=>x.n===n);if(e)return {t,e}}return null}
 
 /* ---------- État ---------- */
-let S=charger();
-function vide(){return {v:VERSION,classe:'',eleves:[],depot:'',cur:0,seance:1,tab:'seance',d:{},poules:{},envoi:{},hist:{},cfg:null}}
-function charger(){try{const o=JSON.parse(localStorage.getItem(CLE));if(o&&o.v)return Object.assign(vide(),o)}catch(e){}return vide()}
-function sauver(){try{localStorage.setItem(CLE,JSON.stringify(S))}catch(e){toast('Mémoire du téléphone pleine : envoie tes fichiers.')}}
+/* Une tablette sert à plusieurs groupes et plusieurs classes : chaque groupe a son carnet.
+   ROOT = {v:2, actif, groupes:{id:carnet}, classes:{classe:{classe,eleves,lien}}} ; S = carnet du groupe actif. */
+function vide(){return {v:VERSION,classe:'',eleves:[],depot:'',cur:0,seance:1,tab:'seance',d:{},poules:{},envoi:{},hist:{},cfg:null,vu:Date.now()}}
+function charger(){
+  let o=null;try{o=JSON.parse(localStorage.getItem(CLE))}catch(e){}
+  if(o&&o.v===2&&o.groupes)return Object.assign({classes:{}},o);
+  const R={v:2,actif:null,groupes:{},classes:{}};
+  if(o&&o.v&&o.eleves){const id=uid();R.groupes[id]=Object.assign(vide(),o);R.actif=id;if(o.cfg)R.classes[o.cfg.classe]=o.cfg} // ancien format : un seul groupe
+  return R;
+}
+let ROOT=charger();
+// À l'ouverture : avec plusieurs groupes sur l'appareil, chacun choisit le sien.
+if(Object.keys(ROOT.groupes).length>1)ROOT.actif=null;
+let S=ROOT.actif?ROOT.groupes[ROOT.actif]:null;
+function sauver(){if(S&&ROOT.actif){S.vu=Date.now();ROOT.groupes[ROOT.actif]=S}try{localStorage.setItem(CLE,JSON.stringify(ROOT))}catch(e){toast('Mémoire pleine : envoie les fichiers puis supprime les anciens groupes.')}}
+function activer(id){ROOT.actif=id;S=ROOT.groupes[id]||null;if(S&&!S.eleves.length)S.tab='groupe';else if(S&&S.tab==='groupe')S.tab='seance';sauver()}
+function nouveauGroupe(classe){const id=uid();const g=vide();const C=classe&&ROOT.classes[classe];if(C){g.cfg=JSON.parse(JSON.stringify(C));g.classe=classe}g.tab='groupe';ROOT.groupes[id]=g;activer(id)}
 const elv=()=>S.eleves[S.cur]||S.eleves[0];
 function rec(id,n,creer=true){
   S.d[id]=S.d[id]||{};
@@ -52,7 +65,19 @@ function plusFaibles(e){
 function valideQuand(id,k){for(const p of seancesDe(id)){const r=S.d[id][p];if(r.val&&r.val[k])return p}return null}
 
 /* ---------- Affichage ---------- */
+function vChoix(){
+  const G=Object.entries(ROOT.groupes).sort((a,b)=>(a[1].classe||'').localeCompare(b[1].classe||'','fr')||(b[1].vu||0)-(a[1].vu||0));
+  const parC={};G.forEach(([id,g])=>(parC[g.classe||'Sans classe']=parC[g.classe||'Sans classe']||[]).push([id,g]));
+  const C=Object.keys(ROOT.classes).sort();
+  return `<h2>Qui utilise la tablette ?</h2>
+  ${G.length?Object.entries(parC).map(([c,L])=>`<section class="carte"><h3>${esc(c)}</h3><div class="choix">${L.map(([id,g])=>`<button type="button" class="bt grp" data-act="choisir" data-v="${id}">${g.eleves.length?g.eleves.map(e=>esc(e.nom.split(/\s+/)[0]||e.nom)).join(' · '):'Groupe à compléter'}<small>${g.eleves.map(e=>esc(e.nom)).join(', ')}</small></button>`).join('')}</div></section>`).join(''):'<p class="muted">Aucun groupe sur cette tablette.</p>'}
+  <section class="carte"><h3>Nouveau groupe</h3>
+    ${C.length?`<p class="small muted">Classes déjà enregistrées sur la tablette :</p><div class="rangee">${C.map(c=>`<button type="button" class="bt" data-act="nouveau" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div><p class="small muted" style="margin-top:10px">Autre classe :</p>`:''}
+    <button type="button" class="bt orange" data-act="nouveauqr">Scanner le QR de la classe</button></section>`;
+}
 function rendre(){
+  document.querySelectorAll('.barre .bt').forEach(x=>x.hidden=!S);
+  if(!S){$('#sous').textContent='Choisis ton groupe';$('#seances').hidden=true;$('#qui').hidden=true;$('#onglets').hidden=true;$('#main').innerHTML=vChoix();return}
   const g=S.eleves.length>0;
   if(!g)S.tab='groupe';
   $('#sous').textContent=g?(S.classe?S.classe+' · ':'')+S.eleves.map(e=>e.nom.split(/\s+/)[0]).join(', '):'Crée ton groupe pour commencer';
@@ -82,7 +107,7 @@ function vGroupe(){
   return `<h2>Mon groupe</h2>
   ${C?`<div class="carte"><p style="margin:0"><b>Classe ${esc(C.classe)}</b> <span class="small muted">· liste reçue du professeur (${C.eleves.length} élèves)</span></p>
       ${L.map((e,i)=>`<label class="ch" for="g-e${i}">Élève ${'ABC'[i]}</label>${choix(e,i)}`).join('')}
-      <div class="rangee" style="margin-top:14px"><button class="bt orange" type="button" data-act="gvalider">Enregistrer le groupe</button><button class="bt mini" type="button" data-act="qrclasse">Changer de classe</button></div></div>`
+      <div class="rangee" style="margin-top:14px"><button class="bt orange" type="button" data-act="gvalider">Enregistrer le groupe</button><button class="bt mini" type="button" data-act="qrclasse">Nouvelle liste de classe (QR)</button></div></div>`
    :`<div class="carte"><h3>1. Scanner le QR de la classe</h3><p class="small muted">Le professeur l’affiche au premier cours. Il donne la classe et la liste des élèves.</p>
       <button class="bt orange" type="button" data-act="qrclasse">Scanner le QR de la classe</button></div>
     <details class="carte"><summary class="small">Pas de QR ? Saisir à la main</summary>
@@ -94,12 +119,12 @@ function vGroupe(){
     ${S.eleves.length?`<p class="small"><b>Il part d’ici :</b></p><div class="rangee">${S.eleves.map((e,i)=>`<button class="bt mini" type="button" data-act="tpartir" data-v="${i}">${esc(e.nom.split(/\s+/)[0]||e.nom)} part</button>`).join('')}</div>`:''}
     ${S.eleves.length<3?`<p class="small" style="margin-top:12px"><b>Il arrive ici :</b></p><button class="bt orange mini" type="button" data-act="tarrive">Scanner le QR de l’élève qui arrive</button>`:'<p class="small muted" style="margin-top:12px">Le groupe est complet (3) : pour accueillir un élève, retire d’abord quelqu’un.</p>'}
   </div>
-  <div class="carte"><h3>Changer de téléphone</h3>
-    <p class="small muted">Tout est gardé sur ce téléphone. Pour continuer sur un autre, enregistre le carnet du groupe ici, puis reprends-le là-bas.</p>
+  <div class="carte"><h3>Changer de tablette</h3>
+    <p class="small muted">Le carnet du groupe est gardé sur cette tablette. Pour continuer sur une autre, enregistre-le ici, puis reprends-le là-bas.</p>
     <div class="rangee"><button class="bt mini" type="button" data-act="sauvegarde">Enregistrer le carnet du groupe</button>
     <label class="bt mini" for="reprise">Reprendre un carnet</label><input id="reprise" type="file" accept=".json,application/json" hidden></div>
   </div>
-  ${S.eleves.length?`<div class="carte"><button class="bt mini danger" type="button" data-act="toutEffacer">Effacer toutes les données de ce téléphone</button></div>`:''}
+  <div class="carte"><button class="bt mini danger" type="button" data-act="toutEffacer">Supprimer ce groupe de la tablette</button></div>
   <p class="rgpd">Les données restent sur ce téléphone. Elles partent seulement quand tu les envoies à ton professeur (QR code ou envoi en ligne).</p>`;
 }
 
@@ -364,8 +389,12 @@ async function montrerTransfert(i){
 }
 function recevoirClasse(o){
   if(o.t!=='C')throw new Error('Ce n’est pas le QR de la classe.');
-  if(S.classe&&S.eleves.length&&S.classe!==o.c&&!confirm('Ce téléphone était réglé sur la classe '+S.classe+'. Passer en '+o.c+' ?'))throw new Error('Classe inchangée.');
-  S.cfg={classe:o.c,eleves:o.l||[],lien:o.u||''};S.classe=o.c;sauver();rendre();
+  const cfg={classe:o.c,eleves:o.l||[],lien:o.u||''};
+  ROOT.classes[o.c]=cfg;
+  // mise à jour de la liste pour tous les groupes de cette classe
+  Object.values(ROOT.groupes).forEach(g=>{if(g.classe===o.c)g.cfg=JSON.parse(JSON.stringify(cfg))});
+  if(!S||(S.eleves.length&&S.classe&&S.classe!==o.c)){nouveauGroupe(o.c);rendre();return 'Nouveau groupe en '+o.c+' : choisissez vos noms.'}
+  S.cfg=JSON.parse(JSON.stringify(cfg));S.classe=o.c;sauver();rendre();
   return 'Classe '+o.c+' : '+(o.l||[]).length+' élèves.';
 }
 function accueillir(o){
@@ -446,6 +475,13 @@ document.addEventListener('click',async ev=>{
   const b=ev.target.closest('[data-act]');if(!b)return;
   const a=b.dataset.act,v=b.dataset.v;
   if(a==='fermerVoile'){if(ev.target===b&&!PENDING)fermer();return}
+  if(a==='choisir'){activer(v);rendre();window.scrollTo(0,0);return}
+  if(a==='nouveau'){nouveauGroupe(v);rendre();return}
+  if(a==='nouveauqr'||(a==='qrclasse'&&!S)){TTQR.scanner(async t=>recevoirClasse(await TTQR.decoder(t)),{titre:'QR de la classe',aide:'Scanne le QR affiché par le professeur.'});return}
+  if(a==='changer'){fermer();sauver();ROOT.actif=null;S=null;sauver();rendre();window.scrollTo(0,0);return}
+  if(a==='video'){ouvrirVideo(b.dataset.u,b.dataset.t);return}
+  if(a==='fermer'){fermer();return}
+  if(!S)return;
   const E=elv(),n=S.seance;
   switch(a){
     case 'tab':S.tab=v;break;
@@ -467,7 +503,7 @@ document.addEventListener('click',async ev=>{
       L.forEach(e=>{const o=ancien[e.id];if(o&&o!==e.nom)Object.values(S.poules).forEach(P=>{const i=P.joueurs.indexOf(o);if(i>=0)P.joueurs[i]=e.nom})});
       S.classe=cl;S.eleves=L;S.cur=0;S.tab='seance';toast('Groupe enregistré.');break}
     case 'sauvegarde':telecharger('Carnet_TT_'+(TTL.slug(S.classe)||'groupe')+'_'+today()+'.json',JSON.stringify(Object.assign({carnetTT:1},S)));return;
-    case 'toutEffacer':if(!confirm('Effacer le groupe et toutes ses séances sur ce téléphone ? Envoie d’abord tes fichiers.'))return;S=vide();break;
+    case 'toutEffacer':if(!confirm('Supprimer ce groupe et toutes ses séances de la tablette ? Envoie d’abord tes fichiers.'))return;delete ROOT.groupes[ROOT.actif];ROOT.actif=null;S=null;sauver();rendre();return;
     case 'niv':{const r=rec(E.id,n),x=r.exos[+b.dataset.i];x.niv=x.niv===+v?0:+v;touche(r);break}
     case 'addex':{const r=rec(E.id,n);r.exos.push({slot:+b.dataset.slot,ex:null,niv:0,rq:''});break}
     case 'delex':{const r=rec(E.id,n);r.exos.splice(+b.dataset.i,1);break}
@@ -511,11 +547,11 @@ document.addEventListener('change',async ev=>{
   const t=ev.target;
   if(t.id==='reprise'&&t.files[0]){
     try{const o=JSON.parse(await t.files[0].text());if(!o.carnetTT||!o.v)throw 0;
-      if(!confirm('Remplacer les données de ce téléphone par ce carnet ?'))return;delete o.carnetTT;S=Object.assign(vide(),o);sauver();rendre();toast('Carnet repris.')}
+      delete o.carnetTT;const id=uid();ROOT.groupes[id]=Object.assign(vide(),o);if(o.cfg)ROOT.classes[o.cfg.classe]=o.cfg;activer(id);rendre();toast('Carnet repris : nouveau groupe sur cette tablette.')}
     catch(e){toast('Ce fichier n’est pas un carnet de groupe.')}
     return;
   }
-  const c=t.dataset.ch;if(!c)return;
+  const c=t.dataset.ch;if(!c||!S)return;
   const E=elv(),n=S.seance,r=rec(E.id,n);
   switch(c){
     case 'axe':{const sl=+t.dataset.slot,de=r.axes[sl],vers=t.value||null;
@@ -533,7 +569,7 @@ document.addEventListener('change',async ev=>{
   sauver();rendre();
 });
 document.addEventListener('input',ev=>{
-  const t=ev.target,c=t.dataset.ch;if(!c||!S.eleves.length)return;
+  const t=ev.target,c=t.dataset.ch;if(!c||!S||!S.eleves.length)return;
   const E=elv(),n=S.seance;
   if(c==='set'){const P=S.poules[n],m=P.matchs[+t.dataset.m];m.m=m.m||[];const s=+t.dataset.s;m.m[s]=m.m[s]||['',''];m.m[s][+t.dataset.c]=t.value.replace(/\D/g,'').slice(0,2);QRS=null;sauver();
     const bz=document.getElementById('mb-'+t.dataset.m);if(bz)bz.innerHTML=badge(P,m);const cz=document.getElementById('pcl');if(cz)cz.innerHTML=htmlClassement(P);const hz=document.getElementById('phist');if(hz)hz.outerHTML=historique();return}

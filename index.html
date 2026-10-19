@@ -158,6 +158,10 @@ ul.nvl{list-style:none;padding-left:0}ul.nvl li{display:flex;gap:8px;align-items
 .scan-msg{min-height:2.6em;font-weight:700;margin:10px 0}.scan-msg.ok{color:var(--vert)}.scan-msg.err{color:var(--alerte)}
 .scan-bas{display:flex;justify-content:space-between;align-items:center}
 .coche.disp{margin:4px 0 8px;background:var(--craie);border:1.5px solid var(--trait)}
+.barre .bt.mini{padding:0 10px}
+.choix{display:grid;gap:8px}
+.bt.grp{flex-direction:column;align-items:flex-start;min-height:64px;padding:8px 14px;font:800 22px/1.1 var(--d);font-stretch:78%;text-align:left;width:100%}
+.bt.grp small{font:400 13px var(--t);color:var(--repere)}
 .principe{margin:8px 2px 0;font-size:17px;line-height:1.35}
 .principe b{display:inline-block;margin-right:6px;padding:1px 8px;border-radius:6px;background:var(--ligne-pale);color:var(--ligne-fonce);font-size:13px;text-transform:uppercase;letter-spacing:.04em;vertical-align:1px}
 .vliste{display:grid;gap:8px}
@@ -172,7 +176,7 @@ ul.nvl{list-style:none;padding-left:0}ul.nvl li{display:flex;gap:8px;align-items
 </head>
 <body>
 <header>
-  <div class="barre"><img src="icon-192.png" alt=""><div class="app">Tennis de table · Élève<small id="sous"></small></div><button class="bt mini" data-act="groupe" type="button">Groupe</button></div>
+  <div class="barre"><img src="icon-192.png" alt=""><div class="app">Tennis de table · Élève<small id="sous"></small></div><button class="bt mini" data-act="groupe" type="button">Mon groupe</button><button class="bt mini noir" data-act="changer" type="button">Changer</button></div>
   <div class="trace"></div>
   <div class="seances" id="seances"></div>
 </header>

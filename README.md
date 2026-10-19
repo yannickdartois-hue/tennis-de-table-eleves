@@ -43,3 +43,6 @@ Rien à modifier dans le code d'une année sur l'autre.
 4. **Fin d'année** : Classes → « Archiver l'année et repartir à zéro ».
 Dispensés : case « Aujourd'hui je suis dispensé(e) » ; axes analyse, coach ou arbitrage seulement ; arbitre de sa poule (« Arbitre dispensé »).
 Bibliothèque ajoutée : SheetJS (Apache 2.0) pour lire les fichiers Pronote.
+
+## Tablettes partagées entre classes (19/10/2026)
+Une tablette garde un carnet par groupe, toutes classes confondues. À l'ouverture (dès qu'il y a 2 groupes ou plus) : écran « Qui utilise la tablette ? » ; chaque groupe touche son nom. « Changer » (en haut) revient à cet écran. Nouveau groupe : classe déjà connue de la tablette, ou scan du QR de la classe. « Supprimer ce groupe » n'efface que ce groupe. Les carnets de l'ancienne version sont repris automatiquement.
