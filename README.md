@@ -43,3 +43,6 @@ Une tablette garde un carnet par groupe, toutes classes confondues. Chaque carne
 - « Changer » (en haut), 10 min sans activité ou la réouverture de l'appli verrouillent le carnet.
 - Code oublié : le carnet ne peut pas être ouvert (pas de passe-partout) ; on le supprime, on crée un nouveau groupe, et l'outil prof donne à chaque élève un **QR de reprise** (fiche de l'élève) qui lui rend étoile, axes, matchs à thème validés et poules.
 - Les carnets des versions précédentes sont repris : le groupe choisit un code à la première ouverture.
+
+## Tours de poule (19/10/2026)
+Onglet Poule : boutons « Tour 1 à 4 ». D'habitude un seul tour ; le jour de l'évaluation, 4 tours (le 1er sert de calage). Chaque tour part dans les fichiers (`tours`) et a son propre QR « Poule ». Côté prof, séance 8 tour 2 = « 8.2 ».
