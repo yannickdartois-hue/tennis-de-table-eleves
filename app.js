@@ -1,0 +1,456 @@
+/* =====================================================================
+   app.js — Tennis de table · appli élève (GAREEPS)
+   Lycée Georges Pompidou · un téléphone pour 2 ou 3 élèves
+   Données gardées sur le téléphone uniquement (localStorage).
+   ===================================================================== */
+'use strict';
+/* Lien de dépôt du Nuage (« Demande de fichier – Téléversement seulement »).
+   À remplir ici par le professeur ; il peut aussi être collé dans l'écran « Groupe ». */
+const DEPOT_DEFAUT='';
+const CLE='tte-v1',NB_SEANCES=9,VERSION=1;
+const COURT={strat:'Stratégie',cont:'Continuité',diff:'Mettre en difficulté',eng:'Engagement',ana:'Analyse',coach:'Coach',arb:'Arbitrage'};
+const MOTIFS=['C’est trop difficile pour l’instant','Je m’ennuie, c’est trop facile','J’ai repéré un autre problème en match','Conseil du professeur'];
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const axe=k=>GA.axes.find(a=>a.k===k);
+const theme=n=>GA.themes.find(t=>t.n===n);
+const famCl=a=>a?{AFL1:'a1',AFL2:'a2',AFL3:'a3'}[a.afl]:'';
+function exInfo(n){for(const t of GA.themes){const e=t.ex.find(x=>x.n===n);if(e)return {t,e}}return null}
+
+/* ---------- État ---------- */
+let S=charger();
+function vide(){return {v:VERSION,classe:'',eleves:[],depot:'',cur:0,seance:1,tab:'seance',d:{},poules:{},envoi:{}}}
+function charger(){try{const o=JSON.parse(localStorage.getItem(CLE));if(o&&o.v)return Object.assign(vide(),o)}catch(e){}return vide()}
+function sauver(){try{localStorage.setItem(CLE,JSON.stringify(S))}catch(e){toast('Mémoire du téléphone pleine : envoie tes fichiers.')}}
+const elv=()=>S.eleves[S.cur]||S.eleves[0];
+function rec(id,n,creer=true){
+  S.d[id]=S.d[id]||{};
+  let r=S.d[id][n];
+  if(!r&&creer){r=S.d[id][n]={date:null,axes:axesDefaut(id,n),chg:[],exos:[],val:{},rq:'',etoile:null,grille:null}}
+  return r;
+}
+function touche(r){if(!r.date)r.date=today()}
+function seancesDe(id){return Object.keys(S.d[id]||{}).map(Number).sort((a,b)=>a-b)}
+function axesDefaut(id,n){
+  const prev=seancesDe(id).filter(x=>x<n).reverse();
+  for(const p of prev){const a=S.d[id][p].axes;if(a&&(a[0]||a[1]))return a.slice()}
+  const et=derniereEtoile(id,n);
+  return et?plusFaibles(et.e):[null,null];
+}
+function derniereEtoile(id,n){const L=seancesDe(id).filter(x=>x<=n).reverse();for(const p of L){const e=S.d[id][p].etoile;if(e&&Object.keys(e).length)return {s:p,e}}return null}
+function premiereEtoile(id){for(const p of seancesDe(id)){const e=S.d[id][p].etoile;if(e&&Object.keys(e).length)return {s:p,e}}return null}
+function plusFaibles(e){
+  const set=GA.axes.filter(a=>e[a.k]);if(set.length<3)return [null,null];
+  const o=set.slice().sort((x,y)=>e[x.k]-e[y.k]||GA.axes.indexOf(x)-GA.axes.indexOf(y));
+  return [o[0].k,o[1]?o[1].k:null];
+}
+function valideQuand(id,k){for(const p of seancesDe(id)){const r=S.d[id][p];if(r.val&&r.val[k])return p}return null}
+
+/* ---------- Affichage ---------- */
+function rendre(){
+  const g=S.eleves.length>0;
+  if(!g)S.tab='groupe';
+  $('#sous').textContent=g?(S.classe?S.classe+' · ':'')+S.eleves.map(e=>e.nom.split(/\s+/)[0]).join(', '):'Crée ton groupe pour commencer';
+  // séances
+  const faites=new Set();S.eleves.forEach(e=>seancesDe(e.id).forEach(n=>{if(S.d[e.id][n].date)faites.add(n)}));Object.keys(S.poules).forEach(n=>faites.add(+n));
+  $('#seances').innerHTML=g?`<span class="lab">Séance</span><div class="strip">${[...Array(NB_SEANCES)].map((_,i)=>`<button type="button" data-act="seance" data-v="${i+1}" class="${S.seance===i+1?'ici':''} ${faites.has(i+1)?'fait':''}" aria-label="Séance ${i+1}">${i+1}</button>`).join('')}</div>`:'';
+  $('#seances').hidden=!g;
+  // qui saisit
+  const parEleve=['seance','etoile','poule'].includes(S.tab)&&S.eleves.length>1;
+  $('#qui').hidden=!parEleve;
+  $('#qui').innerHTML=parEleve?S.eleves.map((e,i)=>`<button type="button" data-act="qui" data-v="${i}" class="${S.cur===i?'ici':''}">${esc(e.nom.split(/\s+/)[0]||e.nom)}</button>`).join(''):'';
+  // onglets
+  const O=[['seance','Séance','Exercices'],['etoile','Étoile','Je me situe'],['poule','Poule','Matchs'],['regles','Règles','et gestes'],['envoi','Envoyer','QR · Nuage']];
+  $('#onglets').innerHTML=O.map(o=>`<button type="button" data-act="tab" data-v="${o[0]}" class="${S.tab===o[0]?'ici':''}"><b>${o[1]}</b>${o[2]}</button>`).join('');
+  $('#onglets').hidden=!g;
+  const V={regles:vRegles,groupe:vGroupe,seance:vSeance,etoile:vEtoile,poule:vPoule,envoi:vEnvoi};
+  $('#main').innerHTML=(V[S.tab]||vSeance)();
+}
+
+/* ----- Groupe ----- */
+function vGroupe(){
+  const L=S.eleves.length?S.eleves.slice():[];while(L.length<3)L.push({id:'',nom:''});
+  return `<h2>Mon groupe</h2>
+  <p class="muted">Un téléphone pour 2 ou 3 élèves. Chacun écrit son prénom et son nom, en entier, toujours de la même façon.</p>
+  <div class="carte">
+    <label class="ch" for="g-classe">Classe</label><input id="g-classe" type="text" placeholder="1G3" value="${esc(S.classe)}" autocomplete="off">
+    ${L.map((e,i)=>`<label class="ch" for="g-e${i}">Élève ${i+1}${i===2?' (si vous êtes 3)':''}</label><input id="g-e${i}" data-id="${esc(e.id)}" type="text" placeholder="Prénom Nom" value="${esc(e.nom)}" autocomplete="off">`).join('')}
+    <label class="ch" for="g-depot">Lien de dépôt du Nuage (donné par le professeur)</label><input id="g-depot" type="url" placeholder="https://nuage03.apps.education.fr/…" value="${esc(S.depot)}" autocomplete="off">
+    <div class="rangee" style="margin-top:14px"><button class="bt orange" type="button" data-act="gvalider">Enregistrer le groupe</button></div>
+  </div>
+  <div class="carte"><h3>Changer de téléphone</h3>
+    <p class="small muted">Tout est gardé sur ce téléphone. Pour continuer sur un autre, enregistre le carnet du groupe ici, puis reprends-le là-bas.</p>
+    <div class="rangee"><button class="bt mini" type="button" data-act="sauvegarde">Enregistrer le carnet du groupe</button>
+    <label class="bt mini" for="reprise">Reprendre un carnet</label><input id="reprise" type="file" accept=".json,application/json" hidden></div>
+  </div>
+  ${S.eleves.length?`<div class="carte"><button class="bt mini danger" type="button" data-act="toutEffacer">Effacer toutes les données de ce téléphone</button></div>`:''}
+  <p class="rgpd">Les données restent sur ce téléphone. Elles partent seulement quand tu les envoies à ton professeur (QR code ou dépôt dans le Nuage de l’Éducation nationale).</p>`;
+}
+
+/* ----- Séance ----- */
+function optAxes(cur,autre,id){
+  return `<option value="">— Choisir un axe —</option>`+['AFL1','AFL2','AFL3'].map(f=>`<optgroup label="${f}">${GA.axes.filter(a=>a.afl===f).map(a=>`<option value="${a.k}"${a.k===cur?' selected':''}${a.k===autre?' disabled':''}>${esc(a.n)}${valideQuand(id,a.k)?' ✓':''}</option>`).join('')}</optgroup>`).join('');
+}
+function optExos(k,cur){
+  const a=axe(k);if(!a)return '';
+  return `<option value="">— N° d’exercice —</option>`+a.th.map(n=>{const t=theme(n);return `<optgroup label="Thème ${n} · ${esc(t.t)}">${t.ex.map(e=>`<option value="${esc(e.n)}"${e.n===cur?' selected':''}>${esc(e.n)} · ${esc(e.t)}</option>`).join('')}</optgroup>`}).join('');
+}
+function puces(nb,i){const l=nb===3?['●','●●','●●●']:nb===2?['●●','●●●']:['●●●'];return l[i]||'●●●'}
+const IMG_EX=new Set(['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31','32','33','34','A1','A2','A3','A4','R1','R2','R3','R4','R5','R6','R7','R8','R9','R10','R11']);
+const IMG_MT=new Set([1,2,3,4,5,6,7]);
+const duree=d=>d<60?d+' s':Math.floor(d/60)+' min '+String(d%60).padStart(2,'0');
+// Image d'illustration (fiche GAREEPS) : un toucher ouvre la vidéo de l'exercice.
+function illustration(src,vid,alt){
+  if(!src&&!vid)return '';
+  const img=src?`<img src="${src}" alt="${esc(alt)}" loading="lazy">`:`<span class="sansimg">${esc(alt)}</span>`;
+  return vid?`<button type="button" class="illus" data-act="video" data-u="${vid.u}" data-t="${esc(vid.t)}">${img}<span class="play" aria-hidden="true">▶</span><span class="lv">Voir la vidéo · ${duree(vid.d)}</span></button>`
+            :`<div class="illus sans">${img}<span class="lv">Pas encore de vidéo</span></div>`;
+}
+function voirAussi(n){
+  const L=(VID.voirAussi[n]||[]).map(i=>VID.autres[i]);
+  return L.length?`<div class="rangee" style="margin-top:6px">${L.map(v=>`<button type="button" class="bt mini" data-act="video" data-u="${v.u}" data-t="${esc(v.t)}">▶ ${esc(v.t)}</button>`).join('')}</div>`:'';
+}
+function fiche(n){
+  const x=exInfo(n);if(!x)return '';const e=x.e;
+  return illustration(IMG_EX.has(n)?'img/ex'+n+'.jpg':'',VID.ex[n],'Exercice '+n+' : '+e.t)+voirAussi(n)+`<details class="fiche"><summary>Voir l’exercice ${esc(e.n)} : ${esc(e.t)}</summary><dl class="f">
+    <dt>Consigne</dt><dd>${esc(e.c)}</dd>
+    ${e.j?`<dt>Joueur</dt><dd>${esc(e.j)}</dd>`:''}
+    ${e.p?`<dt>Partenaires</dt><dd>${esc(e.p)}</dd>`:''}
+    ${e.cr&&e.cr.length?`<dt>💡 Critères</dt><dd><ul>${e.cr.map(c=>`<li>${esc(c)}</li>`).join('')}</ul></dd>`:''}
+    ${e.nv&&e.nv.length?`<dt>Niveaux à valider</dt><dd><ul>${e.nv.map((v,i)=>`<li><b>${puces(e.nv.length,i)}</b> ${esc(v)}</li>`).join('')}</ul></dd>`:''}
+  </dl></details>`;
+}
+function pastilles(act,attrs,v){
+  return `<div class="niv">${GA.deg.map((d,i)=>`<button type="button" data-act="${act}" ${attrs} data-v="${i+1}" class="${v===i+1?'on':''}" aria-pressed="${v===i+1}"><i class="p${i+1}"></i>${esc(d)}</button>`).join('')}</div>`;
+}
+function vSeance(){
+  const E=elv(),n=S.seance,r=rec(E.id,n);
+  let h=`<h2>Séance ${n} · ${esc(E.nom)}</h2><p class="muted small">Tes 2 axes de travail, l’exercice choisi pour chacun, et le niveau atteint.</p>`;
+  if(!r.axes[0]&&!r.axes[1]&&!derniereEtoile(E.id,n))h+=`<p class="avert">Commence par ton étoile (onglet Étoile) : elle te propose tes 2 axes les plus faibles.</p>`;
+  [0,1].forEach(sl=>{
+    const k=r.axes[sl],a=axe(k),q=valideQuand(E.id,k);
+    if(k&&!r.exos.some(x=>x.slot===sl))r.exos.push({slot:sl,ex:null,niv:0,rq:''});
+    h+=`<section class="carte axe ${famCl(a)}"><h3>Axe ${sl+1}</h3>
+      <select data-ch="axe" data-slot="${sl}" aria-label="Axe ${sl+1}">${optAxes(k,r.axes[1-sl],E.id)}</select>`;
+    if(a){
+      h+=`<p style="margin:8px 0 0"><span class="fam ${famCl(a)}">${a.afl}</span> ${q?`<span class="ok">✓ match à thème validé${q!==n?' (séance '+q+')':''}</span>`:'<span class="small muted">match à thème pas encore validé</span>'}</p>`;
+      h+=`<details class="fiche"><summary>Le match à thème de cet axe</summary>${a.th.map(t=>{const T=theme(t);return `<dl class="f"><dt>Thème ${t} · ${esc(T.t)}</dt><dd>${illustration(IMG_MT.has(t)?'img/mt'+t+'.jpg':'',VID.mt[t],'Match à thème '+t)}</dd><dd>${esc(T.match)}</dd><dt>Je me reconnais si…</dt><dd><ul>${T.prob.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></dd></dl>`}).join('')}</details>`;
+      r.exos.forEach((x,i)=>{if(x.slot!==sl)return;
+        const solo=r.exos.filter(y=>y.slot===sl).length===1;
+        h+=`<div class="exo"><label class="ch">Exercice choisi</label><select data-ch="ex" data-i="${i}" aria-label="Numéro d’exercice">${optExos(k,x.ex)}</select>
+          ${x.ex?fiche(x.ex)+`<label class="ch" style="margin-top:12px">Niveau atteint</label>${pastilles('niv',`data-i="${i}"`,x.niv)}
+          <label class="ch">Remarque</label><input type="text" data-ch="exrq" data-i="${i}" value="${esc(x.rq)}" placeholder="ex. 6 sur 10, revers à revoir">`:''}
+          ${solo?'':`<div style="margin-top:8px"><button class="bt mini" type="button" data-act="delex" data-i="${i}">Retirer cet exercice</button></div>`}</div>`;
+      });
+      h+=`<div class="rangee" style="margin-top:10px"><button class="bt mini" type="button" data-act="addex" data-slot="${sl}">＋ Un autre exercice sur cet axe</button></div>
+        <label class="coche"><input type="checkbox" data-ch="val" data-k="${k}" ${r.val[k]?'checked':''}> Match à thème validé aujourd’hui</label>`;
+    }
+    h+=`</section>`;
+  });
+  h+=`<section class="carte"><label class="ch" for="bilan">Bilan : ce que j’ai appris, ce que je travaille la prochaine fois</label><textarea id="bilan" data-ch="bilan">${esc(r.rq)}</textarea></section>`;
+  return h;
+}
+
+/* ----- Étoile ----- */
+function radar(e,ref){
+  const N=GA.axes.length,cx=210,cy=200,R=135,pt=(i,rr)=>{const t=-Math.PI/2+i*2*Math.PI/N;return [cx+rr*Math.cos(t),cy+rr*Math.sin(t)]};
+  const rad=d=>R*(d-0.5)/3.5;
+  let g=`<svg viewBox="-95 0 610 410" role="img" aria-label="Mon étoile">`;
+  GA.axes.forEach((a,i)=>{const [x,y]=pt(i,R+8);g+=`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#9AA3AE" stroke-width="4" stroke-linecap="round"/>`});
+  const poly=(v,st)=>GA.axes.every(a=>v[a.k])?`<polygon points="${GA.axes.map((a,i)=>pt(i,rad(v[a.k])).join(',')).join(' ')}" ${st}/>`:'';
+  if(ref)g+=poly(ref,'fill="none" stroke="#5A6475" stroke-width="2.5" stroke-dasharray="7 5"');
+  g+=poly(e,'fill="rgba(234,88,12,.18)" stroke="#EA580C" stroke-width="3"');
+  const col=['#FF0000','#FFFF00','#70AD47','#385723'];
+  GA.axes.forEach((a,i)=>{for(let d=1;d<=4;d++){const [x,y]=pt(i,rad(d)),on=e[a.k]===d;
+    g+=`<g data-act="et" data-k="${a.k}" data-v="${d}" style="cursor:pointer"><circle cx="${x}" cy="${y}" r="17" fill="transparent"/>${on?`<circle cx="${x}" cy="${y}" r="13" fill="none" stroke="#172033" stroke-width="3"/>`:''}<circle cx="${x}" cy="${y}" r="${on?9:7}" fill="${col[d-1]}" stroke="#444" stroke-width="1.2"/></g>`}});
+  const fam={AFL1:['#F4B183','#833C0B'],AFL2:['#FFD966','#7F6000'],AFL3:['#A9D18E','#385723']};
+  GA.axes.forEach((a,i)=>{const [x,y]=pt(i,R+34),L=(a.k==='diff'?'Mettre en|difficulté':COURT[a.k]).split('|'),w=Math.max(...L.map(l=>l.length))*9.6+16,hh=L.length*20+6,anc=Math.abs(x-cx)<12?'middle':x>cx?'start':'end';
+    const rx=anc==='middle'?x-w/2:anc==='start'?x-4:x-w+4,tx=anc==='middle'?x:anc==='start'?x+4:x-4;
+    g+=`<rect x="${rx}" y="${y-hh/2}" width="${w}" height="${hh}" rx="6" fill="${fam[a.afl][0]}"/><text text-anchor="${anc}" font-family="Atkinson,Arial" font-weight="700" font-size="17" fill="${fam[a.afl][1]}">${L.map((l,j)=>`<tspan x="${tx}" y="${y-hh/2+19+j*20}">${l}</tspan>`).join('')}</text>`});
+  return g+`</svg>`;
+}
+function vEtoile(){
+  const E=elv(),n=S.seance,r=rec(E.id,n),e=r.etoile||{},gr=r.grille||{c0:0,c1:0,c2:0,c3:0,cx:0,projet:''};
+  const first=premiereEtoile(E.id),ref=first&&first.s!==n?first.e:null;
+  const score=gr.c1+2*gr.c2+3*gr.c3;
+  let h=`<h2>Mon étoile · ${esc(E.nom)}</h2><p class="muted small">Séance ${n}. À faire en début de cycle, puis à refaire en fin de cycle pour voir tes progrès.</p>`;
+  h+=`<details class="carte"${r.grille||n===1?' open':''}><summary><h3 style="display:inline">1 · Grille du coach</h3></summary>
+    <p class="small muted">Pendant le match, le coach compte comment son joueur gagne ses points.</p>
+    <div class="compteurs">${GA.obs.map(([c,l])=>{const k='c'+c;return `<div title="${esc(l)}"><span class="code">${c}</span><b>${gr[k]||0}</b><button type="button" data-act="cpt" data-k="${k}" data-v="1" aria-label="ajouter un ${c}">+</button><button type="button" data-act="cpt" data-k="${k}" data-v="-1" aria-label="enlever un ${c}">−</button></div>`}).join('')}</div>
+    <ul class="small">${GA.obs.map(([c,l])=>`<li><b>${c}</b> : ${esc(l)}</li>`).join('')}</ul>
+    <p><b>Score observé : ${score}</b> <span class="small muted">(1 × les 1 + 2 × les 2 + 3 × les 3)</span></p>
+    <label class="ch" for="projet">Je prévois de gagner en…</label><input id="projet" type="text" data-ch="projet" value="${esc(gr.projet)}" placeholder="ex. service sur le revers et smash dès que possible">
+  </details>`;
+  h+=`<section class="carte"><h3>2 · Je me situe sur mon étoile</h3><p class="small muted">Touche la pastille qui te décrit sur chaque axe. On se situe avec les faits notés, pas avec l’impression.</p>
+    <div class="radar">${radar(e,ref)}</div>
+    ${ref?`<p class="small muted" style="text-align:center">Pointillés : ta 1re étoile (séance ${first.s}).</p>`:''}
+    <div class="grille-etoile">${GA.axes.map(a=>`<div class="ax-row carte axe ${famCl(a)}" style="margin:0"><b>${esc(a.n)}</b> <span class="fam ${famCl(a)}">${a.afl}</span>
+      ${pastilles('et',`data-k="${a.k}"`,e[a.k]||0)}<div class="desc">${e[a.k]?esc(a.d[e[a.k]-1]):''}</div></div>`).join('')}</div></section>`;
+  const set=GA.axes.filter(a=>e[a.k]);
+  h+=`<section class="carte"><h3>Mes pistes de travail</h3>`;
+  if(set.length<3)h+=`<p class="muted">Place au moins 3 axes pour obtenir des pistes.</p>`;
+  else{
+    const [k1,k2]=plusFaibles(e);
+    h+=`<p>Tes 2 axes les plus faibles :</p><ul>${[k1,k2].filter(Boolean).map(k=>{const a=axe(k);return `<li><b>${esc(a.n)}</b> (${GA.deg[e[k]-1].toLowerCase()}) → ${a.th.map(t=>`thème ${t} « ${esc(theme(t).t)} »`).join(' ; ')}</li>`}).join('')}</ul>
+      <button class="bt orange" type="button" data-act="prendreAxes">Prendre ces 2 axes pour ma séance</button>`;
+  }
+  return h+`</section>`;
+}
+
+/* ----- Poule ----- */
+function vPoule(){
+  const n=S.seance,P=S.poules[n];
+  if(!P||P.edit)return formPoule(P);
+  const need={'1':1,'2':3,'3':5}[P.fmt];
+  let h=`<h2>Poule ${P.num} · séance ${n}</h2><p class="muted small">${P.joueurs.length} joueurs · ${P.fmt==='1'?'1 manche':P.fmt+' manches gagnantes'} · un seul téléphone par poule saisit les scores.</p>`;
+  h+=`<section class="carte"><h3>Les matchs</h3>${P.matchs.map((m,i)=>{const e=TTL.etatMatch(m,P.fmt),A=P.joueurs[m.a],B=P.joueurs[m.b];
+    return `<div class="match"><div class="tete"><b>${i+1}. ${esc(A)} – ${esc(B)}</b><span id="mb-${i}">${badge(P,m)}</span></div>
+      <div class="small muted">${m.arb!=null?'Arbitre : '+esc(P.joueurs[m.arb]):'Pas d’arbitre libre : les joueurs comptent'}</div>
+      <div class="sets">${[...Array(need)].map((_,s)=>{const v=(m.m||[])[s]||['',''];return `<span class="set"><input inputmode="numeric" pattern="[0-9]*" maxlength="2" data-ch="set" data-m="${i}" data-s="${s}" data-c="0" value="${esc(v[0])}" aria-label="Manche ${s+1}, points de ${esc(A)}">–<input inputmode="numeric" pattern="[0-9]*" maxlength="2" data-ch="set" data-m="${i}" data-s="${s}" data-c="1" value="${esc(v[1])}" aria-label="Manche ${s+1}, points de ${esc(B)}"></span>`}).join('')}
+      <select data-ch="forf" data-m="${i}" style="width:auto;min-height:44px" aria-label="Forfait"><option value="">Joué</option><option value="a"${m.f==='a'?' selected':''}>Forfait ${esc(A)}</option><option value="b"${m.f==='b'?' selected':''}>Forfait ${esc(B)}</option></select></div></div>`}).join('')}</section>`;
+  h+=`<section class="carte"><h3>Classement</h3><div id="pcl">${htmlClassement(P)}</div>
+    <div class="rangee"><button class="bt mini" type="button" data-act="pedit">Modifier la poule</button></div></section>`;
+  h+=historique();
+  return h;
+}
+function badge(P,m){const e=TTL.etatMatch(m,P.fmt);return e.fini?`<span class="badge v">${esc(P.joueurs[e.w==='a'?m.a:m.b])} gagne ${e.forfait?'(forfait)':e.ma+'-'+e.mb}</span>`:''}
+function htmlClassement(P){
+  const C=TTL.classement(P.joueurs.length,P.matchs,P.fmt),total=P.matchs.length,joues=P.matchs.filter(m=>TTL.etatMatch(m,P.fmt).fini).length,moi=elv()?elv().nom:'';
+  return `<p class="small muted">${joues}/${total} matchs joués.</p><table class="cl"><thead><tr><th>Rang</th><th>Joueur</th><th>Pts</th><th>V</th><th>D</th><th>Manches</th></tr></thead><tbody>${C.map(c=>`<tr class="${P.joueurs[c.i]===moi?'moi':''}"><td>${c.rang}</td><td>${esc(P.joueurs[c.i])}</td><td>${c.pts}</td><td>${c.v}</td><td>${c.d}</td><td>${c.mg}-${c.mp}</td></tr>`).join('')}</tbody></table>
+    <p class="small muted">Victoire 2 pts, défaite 1, forfait 0. Égalité : matchs entre ex aequo, puis manches, puis points.</p>
+    ${P.mouv&&joues===total&&total?`<p><b>${esc(P.joueurs[C[0].i])}</b> ${P.num>1?'monte en poule '+(P.num-1):'reste en poule 1'} · <b>${esc(P.joueurs[C[C.length-1].i])}</b> descend en poule ${P.num+1}</p>`:''}`;
+}
+function formPoule(P){
+  const d=P||{num:1,fmt:'2',mouv:true,joueurs:S.eleves.map(e=>e.nom)};
+  const J=d.joueurs.slice();while(J.length<3)J.push('');
+  return `<h2>Ma poule · séance ${S.seance}</h2>
+  <p class="muted small">Le professeur donne les poules. Recopiez votre poule ici, sur un seul téléphone par poule. Écris chaque nom en entier.</p>
+  <div class="carte">
+    <label class="ch" for="p-num">Numéro de poule</label><select id="p-num">${[...Array(15)].map((_,i)=>`<option${d.num===i+1?' selected':''}>${i+1}</option>`).join('')}</select>
+    <label class="ch" for="p-fmt">Format des matchs</label><select id="p-fmt"><option value="1"${d.fmt==='1'?' selected':''}>1 manche</option><option value="2"${d.fmt==='2'?' selected':''}>2 manches gagnantes</option><option value="3"${d.fmt==='3'?' selected':''}>3 manches gagnantes</option></select>
+    <label class="ch">Joueurs (2 à 6)</label><div id="p-joueurs">${J.map((j,i)=>`<input type="text" class="pj" value="${esc(j)}" placeholder="Prénom Nom" style="margin-bottom:6px" autocomplete="off" aria-label="Joueur ${i+1}">`).join('')}</div>
+    <div class="rangee"><button class="bt mini" type="button" data-act="pplus">＋ Un joueur</button></div>
+    <label class="coche"><input type="checkbox" id="p-mouv" ${d.mouv?'checked':''}> Le 1er monte, le dernier descend</label>
+    ${P&&P.matchs&&P.matchs.some(m=>(m.m||[]).length||m.f)?'<p class="avert">Si tu changes les joueurs, les scores déjà saisis sont effacés.</p>':''}
+    <div class="rangee" style="margin-top:12px"><button class="bt orange" type="button" data-act="pcreer">Créer les matchs</button>${P?'<button class="bt" type="button" data-act="pannuler">Annuler</button>':''}</div>
+  </div>${historique()}`;
+}
+function historique(){
+  const E=elv();if(!E)return '';
+  const L=Object.keys(S.poules).map(Number).sort((a,b)=>a-b).map(n=>{const P=S.poules[n],i=P.joueurs.indexOf(E.nom);if(i<0||!P.matchs)return null;const r=TTL.resumePoule(P,i);return `<tr><td>${n}</td><td>${P.num}</td><td>${r.rang}/${r.nbJoueurs}</td><td>${r.victoires}-${r.defaites}</td><td class="small">${esc(r.mouvement||'')}</td></tr>`}).filter(Boolean);
+  return L.length?`<section class="carte" id="phist"><h3>Mes poules · ${esc(E.nom)}</h3><table class="cl"><thead><tr><th>Séance</th><th>Poule</th><th>Rang</th><th>V-D</th><th>Ensuite</th></tr></thead><tbody>${L.join('')}</tbody></table><p class="small muted">Seules les poules saisies sur ce téléphone apparaissent ici.</p></section>`:'';
+}
+
+/* ----- Règles du jeu et gestes techniques ----- */
+function vRegles(){
+  const R={};VID.autres.forEach(v=>(R[v.r]=R[v.r]||[]).push(v));
+  const carte=v=>`<button type="button" class="vcarte" data-act="video" data-u="${v.u}" data-t="${esc(v.t)}"><span class="play" aria-hidden="true">▶</span><span><b>${esc(v.t)}</b><small>${duree(v.d)}</small></span></button>`;
+  return `<h2>Règles du jeu et gestes techniques</h2><p class="muted small">Les vidéos s’ouvrent avec internet.</p>
+  ${Object.keys(R).map(r=>`<section class="carte"><h3>${esc(r)}</h3><div class="vliste">${R[r].map(carte).join('')}</div></section>`).join('')}
+  <section class="carte"><h3>Les matchs à thème</h3><div class="vliste">${Object.keys(VID.mt).sort((a,b)=>a-b).map(k=>carte(Object.assign({},VID.mt[k],{t:VID.mt[k].t+' · '+theme(+k).t}))).join('')}</div></section>
+  <p class="small"><a href="${VID.chaine}" target="_blank" rel="noopener">Toutes les vidéos de la chaîne</a></p>`;
+}
+function ouvrirVideo(u,t){
+  const page=VID.base+'/w/'+u;
+  if(navigator.onLine===false){fen(`<h3>${esc(t)}</h3><p class="avert">Pas de connexion internet : la vidéo ne peut pas s’ouvrir.</p><div class="rangee"><button class="bt noir" type="button" data-act="fermer">Fermer</button></div>`);return}
+  fen(`<h3>${esc(t)}</h3><div class="video"><iframe src="${VID.base}/videos/embed/${u}?autoplay=1&title=0&warningTitle=0&peertubeLink=0" title="${esc(t)}" allow="autoplay; fullscreen" allowfullscreen sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"></iframe></div>
+    <div class="rangee" style="margin-top:12px;justify-content:space-between"><a class="bt mini" href="${page}" target="_blank" rel="noopener">Ouvrir sur le site</a><button class="bt noir" type="button" data-act="fermer">Fermer</button></div>`,'large');
+}
+
+/* ----- Envoi ----- */
+function exportEleve(E,n){
+  const P=S.poules[n],pi=P&&P.matchs?P.joueurs.indexOf(E.nom):-1;
+  let r=(S.d[E.id]||{})[n];
+  if(!r){if(pi<0)return null;r={date:today(),axes:[],chg:[],exos:[],val:{},rq:'',etoile:null,grille:null}} // dans la poule mais rien d'autre saisi
+  return {app:'tennis-de-table-eleves',version:VERSION,activite:'Tennis de table',classe:S.classe,eleve:E.nom,seance:n,date:r.date||today(),exportedAt:new Date().toISOString(),
+    axes:r.axes.filter(Boolean).map(k=>{const a=axe(k);return {axe:k,nom:a.n,afl:a.afl,valideAujourdhui:!!r.val[k],valideDepuisSeance:valideQuand(E.id,k)}}),
+    changementsAxe:r.chg.map(c=>({de:c.de,vers:c.vers,motif:c.motif,quand:c.ts})),
+    exercices:r.exos.filter(x=>x.ex).map(x=>{const i=exInfo(x.ex);return {axe:r.axes[x.slot],exercice:x.ex,theme:i?i.t.n:null,titre:i?i.e.t:'',niveau:x.niv||null,niveauLibelle:x.niv?GA.deg[x.niv-1]:'',remarque:x.rq||''}}),
+    bilan:r.rq||'',
+    etoile:r.etoile&&Object.keys(r.etoile).length?GA.axes.map(a=>({axe:a.k,nom:a.n,degre:r.etoile[a.k]||null,libelle:r.etoile[a.k]?GA.deg[r.etoile[a.k]-1]:''})):null,
+    grilleCoach:r.grille?Object.assign({scoreObserve:r.grille.c1+2*r.grille.c2+3*r.grille.c3},r.grille):null,
+    poule:pi>=0?TTL.resumePoule(P,pi):null};
+}
+function fichiers(n){
+  const L=[];
+  S.eleves.forEach(E=>{const o=exportEleve(E,n);if(o)L.push({nom:TTL.nomFichier(S.classe,E.nom,n),o})});
+  const P=S.poules[n];
+  if(P&&P.matchs){const mine=new Set(S.eleves.map(e=>e.nom));P.joueurs.forEach((j,i)=>{if(mine.has(j))return;
+    L.push({nom:TTL.nomFichier(S.classe,j,n,'poule'),o:{app:'tennis-de-table-eleves',version:VERSION,type:'poule',activite:'Tennis de table',classe:S.classe,eleve:j,seance:n,date:today(),exportedAt:new Date().toISOString(),saisiPar:S.eleves.map(e=>e.nom).join(', '),poule:TTL.resumePoule(P,i)}})})}
+  return L;
+}
+function vEnvoi(){
+  const n=S.seance,F=fichiers(n),ev=S.envoi[n]||{};
+  const ligne=f=>{const o=f.o;if(o.type==='poule')return `<li><b>${esc(o.eleve)}</b> : résultats de poule seulement</li>`;
+    const nx=o.exercices.length,nn=o.exercices.filter(e=>e.niveau).length;
+    return `<li><b>${esc(o.eleve)}</b> : ${o.axes.length} axe${o.axes.length>1?'s':''}, ${nx} exercice${nx>1?'s':''} (${nn} niveau${nn>1?'x':''} coché${nn>1?'s':''})${o.etoile?', étoile':''}${o.poule?', poule '+o.poule.numero+' (rang '+o.poule.rang+')':''}${!nx&&!o.etoile&&!o.poule?' <span class="badge">vide</span>':''}</li>`};
+  const manquants=S.eleves.filter(E=>!exportEleve(E,n));
+  return `<h2>Fin de séance ${n}</h2>
+  <section class="carte"><h3>Ce qui va partir</h3>${F.length?`<ul>${F.map(ligne).join('')}</ul>`:'<p class="muted">Rien n’a encore été saisi pour cette séance.</p>'}
+    ${manquants.length?`<p class="avert">Rien de saisi pour : ${manquants.map(e=>esc(e.nom)).join(', ')}.</p>`:''}</section>
+  <section class="carte"><h3>1re façon · QR code</h3><p class="small muted">Sans internet : montre les QR codes au professeur, un par élève${S.poules[n]?', plus un pour la poule':''}. Monte la luminosité de l’écran.</p>
+    <button class="bt noir" type="button" data-act="qr" ${F.length?'':'disabled'}>Montrer les QR codes</button> ${ev.qr?`<span class="ok small">✓ montrés à ${new Date(ev.qr).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</span>`:''}</section>
+  <section class="carte"><h3>2e façon · Envoi en ligne</h3>
+    <p class="small muted">Avec internet : 1. enregistre les fichiers sur le téléphone ; 2. ouvre le dépôt du Nuage, touche « Téléverser » et choisis les fichiers dans Téléchargements.</p>
+    <div class="rangee"><button class="bt noir" type="button" data-act="fichiers" ${F.length?'':'disabled'}>1. Enregistrer les fichiers</button>
+    <button class="bt orange" type="button" data-act="depot">2. Ouvrir le dépôt du Nuage</button></div>
+    ${ev.fichier?`<p class="ok small">✓ fichiers enregistrés à ${new Date(ev.fichier).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</p>`:''}
+    ${(S.depot||DEPOT_DEFAUT)?'':'<p class="avert small">Le lien de dépôt n’est pas encore réglé : demande-le au professeur et colle-le dans « Groupe ».</p>'}
+    <p class="small muted">Noms des fichiers : ${F.map(f=>esc(f.nom)).join(', ')||'—'}</p></section>`;
+}
+
+/* ---------- Fenêtres ---------- */
+function fen(html,cl){$('#modal').innerHTML=`<div class="voile" data-act="fermerVoile"><div class="fen ${cl||''}" role="dialog" aria-modal="true">${html}</div></div>`}
+function fermer(){$('#modal').innerHTML='';PENDING=null;QRS=null}
+let toastT;function toast(t){clearTimeout(toastT);let d=$('.toast');if(!d){d=document.createElement('div');d.className='toast';document.body.appendChild(d)}d.textContent=t;toastT=setTimeout(()=>d.remove(),2600)}
+let PENDING=null,QRS=null;
+function avertirAxe(sl,de,vers){
+  PENDING={sl,de,vers};
+  const a=axe(de),b=vers?axe(vers):null;
+  fen(`<h3>⚠️ Attention</h3><p>Tu changes d’axe alors que ton match à thème <b>« ${esc(a.n)} »</b> n’est pas validé.</p>
+    ${b?`<p class="small muted">Nouvel axe : ${esc(b.n)}</p>`:''}
+    <p><b>Pourquoi changes-tu ?</b></p>
+    <div style="display:grid;gap:8px">${MOTIFS.map((m,i)=>`<button class="bt" type="button" data-act="motif" data-v="${i}">${esc(m)}</button>`).join('')}</div>
+    <div class="rangee" style="margin-top:14px"><button class="bt noir" type="button" data-act="garder">Garder mon axe</button></div>`,'alerte');
+}
+function changerAxe(r,sl,vers,motif){
+  const de=r.axes[sl];
+  r.axes[sl]=vers;touche(r);
+  if(motif)r.chg.push({de,vers,motif,ts:new Date().toISOString()});
+  r.exos=r.exos.filter(x=>x.slot!==sl);
+  if(vers)r.exos.push({slot:sl,ex:null,niv:0,rq:''});
+}
+function qrSvg(txt){
+  const q=qrcode(0,'L');q.addData(txt,'Byte');q.make();
+  const c=q.getModuleCount(),m=4;let p='';
+  for(let y=0;y<c;y++)for(let x=0;x<c;x++)if(q.isDark(y,x))p+=`M${x+m} ${y+m}h1v1h-1z`;
+  return `<svg viewBox="0 0 ${c+2*m} ${c+2*m}" shape-rendering="crispEdges" role="img" aria-label="QR code"><rect width="100%" height="100%" fill="#fff"/><path d="${p}" fill="#000"/></svg>`;
+}
+async function montrerQR(i){
+  if(!QRS){const n=S.seance;const F=fichiers(n);
+    // un QR par élève du groupe ; la poule (autres joueurs) part dans un seul QR
+    const el=F.filter(f=>f.o.type!=='poule');QRS=[];
+    for(const f of el)QRS.push({titre:f.o.eleve,txt:await TTL.chaineQR(f.o)});
+    const P=S.poules[n];
+    if(P&&P.matchs){const o={classe:S.classe,eleve:'Poule '+P.num,seance:n,date:today(),type:'poule'};
+      const q={a:'TTE',v:1,t:'P',c:S.classe,s:n,d:today(),p:[P.num,P.fmt,P.joueurs,P.matchs.map(m=>[m.a,m.b,m.arb,m.f||'',(m.m||[]).filter(x=>x&&x[0]!==''&&x[1]!=='').map(x=>[+x[0],+x[1]])])]};
+      QRS.push({titre:'Poule '+P.num+' (tous les matchs)',txt:await chaineBrute(q)})}
+  }
+  const k=Math.max(0,Math.min(i,QRS.length-1)),Q=QRS[k];
+  let svg;try{svg=qrSvg(Q.txt)}catch(e){svg='<p class="avert">Trop de données pour un QR : utilise l’envoi en ligne.</p>'}
+  fen(`<h3>${esc(Q.titre)} · séance ${S.seance}</h3><p class="small muted">QR ${k+1} sur ${QRS.length}</p><div class="qrbox">${svg}</div>
+    <div class="rangee" style="margin-top:12px;justify-content:space-between"><button class="bt" type="button" data-act="qrnav" data-v="${k-1}" ${k?'':'disabled'}>← Précédent</button>
+    ${k<QRS.length-1?`<button class="bt noir" type="button" data-act="qrnav" data-v="${k+1}">Suivant →</button>`:`<button class="bt orange" type="button" data-act="qrfin">Terminé</button>`}</div>`);
+}
+async function chaineBrute(q){ // même encodage que TTL.chaineQR, pour un objet déjà compact
+  const raw=new TextEncoder().encode(JSON.stringify(q));
+  const b=u=>{let s='';u.forEach(c=>s+=String.fromCharCode(c));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
+  try{if(typeof CompressionStream==='function'){const buf=await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer();return 'TTE1:'+b(new Uint8Array(buf))}}catch(e){}
+  return 'TTE0:'+b(raw);
+}
+function telecharger(nom,texte){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([texte],{type:'application/json'}));a.download=nom;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
+async function enregistrerFichiers(){
+  const F=fichiers(S.seance);if(!F.length)return;
+  const files=F.map(f=>new File([JSON.stringify(f.o,null,1)],f.nom,{type:'application/json'}));
+  let ok=false;
+  try{if(navigator.canShare&&navigator.canShare({files})){await navigator.share({files,title:'Tennis de table · séance '+S.seance});ok=true}}catch(e){if(e&&e.name==='AbortError')return}
+  if(!ok){for(let i=0;i<F.length;i++){telecharger(F[i].nom,JSON.stringify(F[i].o,null,1));await new Promise(r=>setTimeout(r,400))}}
+  S.envoi[S.seance]=Object.assign(S.envoi[S.seance]||{},{fichier:Date.now()});sauver();rendre();
+  toast(ok?'Fichiers partagés.':F.length+' fichier'+(F.length>1?'s':'')+' dans Téléchargements.');
+}
+
+/* ---------- Évènements ---------- */
+document.addEventListener('click',async ev=>{
+  const b=ev.target.closest('[data-act]');if(!b)return;
+  const a=b.dataset.act,v=b.dataset.v;
+  if(a==='fermerVoile'){if(ev.target===b&&!PENDING)fermer();return}
+  const E=elv(),n=S.seance;
+  switch(a){
+    case 'tab':S.tab=v;break;
+    case 'video':ouvrirVideo(b.dataset.u,b.dataset.t);return;
+    case 'fermer':fermer();return;
+    case 'groupe':S.tab='groupe';break;
+    case 'seance':S.seance=+v;QRS=null;break;
+    case 'qui':S.cur=+v;break;
+    case 'gvalider':{
+      const cl=$('#g-classe').value.trim(),dep=$('#g-depot').value.trim(),L=[];
+      for(let i=0;i<3;i++){const inp=$('#g-e'+i),nom=inp.value.trim().replace(/\s+/g,' ');if(nom)L.push({id:inp.dataset.id||uid(),nom})}
+      if(L.length<1){toast('Écris au moins un élève.');return}
+      if(dep&&!/^https:\/\//.test(dep)){toast('Le lien de dépôt doit commencer par https://');return}
+      // un élève renommé garde ses données (même id) ; on renomme aussi dans les poules
+      const ancien={};S.eleves.forEach(e=>ancien[e.id]=e.nom);
+      L.forEach(e=>{const o=ancien[e.id];if(o&&o!==e.nom)Object.values(S.poules).forEach(P=>{const i=P.joueurs.indexOf(o);if(i>=0)P.joueurs[i]=e.nom})});
+      S.classe=cl;S.depot=dep;S.eleves=L;S.cur=0;S.tab='seance';toast('Groupe enregistré.');break}
+    case 'sauvegarde':telecharger('Carnet_TT_'+(TTL.slug(S.classe)||'groupe')+'_'+today()+'.json',JSON.stringify(Object.assign({carnetTT:1},S)));return;
+    case 'toutEffacer':if(!confirm('Effacer le groupe et toutes ses séances sur ce téléphone ? Envoie d’abord tes fichiers.'))return;S=vide();break;
+    case 'niv':{const r=rec(E.id,n),x=r.exos[+b.dataset.i];x.niv=x.niv===+v?0:+v;touche(r);break}
+    case 'addex':{const r=rec(E.id,n);r.exos.push({slot:+b.dataset.slot,ex:null,niv:0,rq:''});break}
+    case 'delex':{const r=rec(E.id,n);r.exos.splice(+b.dataset.i,1);break}
+    case 'et':{const r=rec(E.id,n);r.etoile=r.etoile||{};r.etoile[b.dataset.k]=r.etoile[b.dataset.k]===+v?undefined:+v;if(r.etoile[b.dataset.k]==null)delete r.etoile[b.dataset.k];touche(r);break}
+    case 'cpt':{const r=rec(E.id,n);r.grille=r.grille||{c0:0,c1:0,c2:0,c3:0,cx:0,projet:''};r.grille[b.dataset.k]=Math.max(0,(r.grille[b.dataset.k]||0)+(+v));touche(r);break}
+    case 'prendreAxes':{const r=rec(E.id,n),[k1,k2]=plusFaibles(r.etoile||{});
+      if(r.axes[0]||r.axes[1]){if(r.axes[0]===k1&&r.axes[1]===k2){S.tab='seance';break}toast('Tu as déjà des axes : change-les dans l’onglet Séance.');return}
+      r.axes=[k1,k2];r.exos=[];touche(r);S.tab='seance';toast('Axes choisis : '+COURT[k1]+(k2?' et '+COURT[k2]:''));break}
+    case 'motif':case 'garder':{
+      if(!PENDING)return;const r=rec(E.id,n),p=PENDING;
+      if(a==='motif')changerAxe(r,p.sl,p.vers,MOTIFS[+v]);
+      PENDING=null;fermer();break}
+    case 'pplus':{const z=$('#p-joueurs');if(z.querySelectorAll('input').length>=6){toast('6 joueurs au maximum.');return}
+      z.insertAdjacentHTML('beforeend','<input type="text" class="pj" placeholder="Prénom Nom" style="margin-bottom:6px" autocomplete="off">');return}
+    case 'pcreer':{
+      const J=[...document.querySelectorAll('.pj')].map(i=>i.value.trim().replace(/\s+/g,' ')).filter(Boolean);
+      if(J.length<2){toast('Au moins 2 joueurs.');return}
+      if(new Set(J.map(j=>j.toLowerCase())).size!==J.length){toast('Deux joueurs ont le même nom.');return}
+      const old=S.poules[n],num=+$('#p-num').value,fmt=$('#p-fmt').value,mouv=$('#p-mouv').checked;
+      const memes=old&&old.matchs&&old.joueurs.join('|')===J.join('|');
+      if(old&&old.matchs&&!memes&&old.matchs.some(m=>(m.m||[]).length||m.f)&&!confirm('Les scores déjà saisis seront effacés. Continuer ?'))return;
+      S.poules[n]={num,fmt,mouv,joueurs:J,matchs:memes?old.matchs:TTL.creerMatchs(J.length)};QRS=null;break}
+    case 'pedit':S.poules[n].edit=true;break;
+    case 'pannuler':delete S.poules[n].edit;if(!S.poules[n].matchs)delete S.poules[n];break;
+    case 'qr':QRS=null;await montrerQR(0);return;
+    case 'qrnav':await montrerQR(+v);return;
+    case 'qrfin':S.envoi[n]=Object.assign(S.envoi[n]||{},{qr:Date.now()});fermer();break;
+    case 'fichiers':await enregistrerFichiers();return;
+    case 'depot':{const u=S.depot||DEPOT_DEFAUT;if(!u){toast('Lien de dépôt manquant : demande-le au professeur.');return}window.open(u,'_blank','noopener');return}
+    default:return;
+  }
+  sauver();rendre();
+});
+document.addEventListener('change',async ev=>{
+  const t=ev.target;
+  if(t.id==='reprise'&&t.files[0]){
+    try{const o=JSON.parse(await t.files[0].text());if(!o.carnetTT||!o.v)throw 0;
+      if(!confirm('Remplacer les données de ce téléphone par ce carnet ?'))return;delete o.carnetTT;S=Object.assign(vide(),o);sauver();rendre();toast('Carnet repris.')}
+    catch(e){toast('Ce fichier n’est pas un carnet de groupe.')}
+    return;
+  }
+  const c=t.dataset.ch;if(!c)return;
+  const E=elv(),n=S.seance,r=rec(E.id,n);
+  switch(c){
+    case 'axe':{const sl=+t.dataset.slot,de=r.axes[sl],vers=t.value||null;
+      if(vers&&vers===r.axes[1-sl]){toast('C’est déjà ton autre axe.');break}
+      if(de&&de!==vers&&!valideQuand(E.id,de)){avertirAxe(sl,de,vers);rendre();return}
+      changerAxe(r,sl,vers,null);break}
+    case 'ex':{const x=r.exos[+t.dataset.i];x.ex=t.value||null;x.niv=0;touche(r);break}
+    case 'val':r.val[t.dataset.k]=t.checked;if(!t.checked)delete r.val[t.dataset.k];touche(r);break;
+    case 'forf':{const P=S.poules[n];P.matchs[+t.dataset.m].f=t.value||null;QRS=null;break}
+    default:return;
+  }
+  sauver();rendre();
+});
+document.addEventListener('input',ev=>{
+  const t=ev.target,c=t.dataset.ch;if(!c||!S.eleves.length)return;
+  const E=elv(),n=S.seance;
+  if(c==='set'){const P=S.poules[n],m=P.matchs[+t.dataset.m];m.m=m.m||[];const s=+t.dataset.s;m.m[s]=m.m[s]||['',''];m.m[s][+t.dataset.c]=t.value.replace(/\D/g,'').slice(0,2);QRS=null;sauver();
+    const bz=document.getElementById('mb-'+t.dataset.m);if(bz)bz.innerHTML=badge(P,m);const cz=document.getElementById('pcl');if(cz)cz.innerHTML=htmlClassement(P);const hz=document.getElementById('phist');if(hz)hz.outerHTML=historique();return}
+  const r=rec(E.id,n);
+  if(c==='exrq')r.exos[+t.dataset.i].rq=t.value;
+  else if(c==='bilan')r.rq=t.value;
+  else if(c==='projet'){r.grille=r.grille||{c0:0,c1:0,c2:0,c3:0,cx:0,projet:''};r.grille.projet=t.value}
+  else return;
+  touche(r);sauver();
+});
+rendre();
