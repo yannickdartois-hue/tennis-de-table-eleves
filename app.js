@@ -103,11 +103,12 @@ const IMG_EX=new Set(['1','2','3','4','5','6','7','8','9','10','11','12','13','1
 const IMG_MT=new Set([1,2,3,4,5,6,7]);
 const duree=d=>d<60?d+' s':Math.floor(d/60)+' min '+String(d%60).padStart(2,'0');
 // Image d'illustration (fiche GAREEPS) : un toucher ouvre la vidéo de l'exercice.
-function illustration(src,vid,alt){
+function illustration(src,vid,alt,principe){
   if(!src&&!vid)return '';
+  const pr=principe?`<p class="principe"><b>Le principe</b> ${esc(principe)}</p>`:'';
   const img=src?`<img src="${src}" alt="${esc(alt)}" loading="lazy">`:`<span class="sansimg">${esc(alt)}</span>`;
-  return vid?`<button type="button" class="illus" data-act="video" data-u="${vid.u}" data-t="${esc(vid.t)}">${img}<span class="play" aria-hidden="true">▶</span><span class="lv">Voir la vidéo · ${duree(vid.d)}</span></button>`
-            :`<div class="illus sans">${img}<span class="lv">Pas encore de vidéo</span></div>`;
+  return vid?`<button type="button" class="illus" data-act="video" data-u="${vid.u}" data-t="${esc(vid.t)}">${img}<span class="play" aria-hidden="true">▶</span><span class="lv">Voir la vidéo · ${duree(vid.d)}</span></button>${pr}`
+            :`<div class="illus sans">${img}<span class="lv">Pas encore de vidéo</span></div>${pr}`;
 }
 function voirAussi(n){
   const L=(VID.voirAussi[n]||[]).map(i=>VID.autres[i]);
@@ -115,7 +116,7 @@ function voirAussi(n){
 }
 function fiche(n){
   const x=exInfo(n);if(!x)return '';const e=x.e;
-  return illustration(IMG_EX.has(n)?'img/ex'+n+'.jpg':'',VID.ex[n],'Exercice '+n+' : '+e.t)+voirAussi(n)+`<details class="fiche"><summary>Voir l’exercice ${esc(e.n)} : ${esc(e.t)}</summary><dl class="f">
+  return illustration(IMG_EX.has(n)?'img/ex'+n+'.jpg':'',VID.ex[n],'Exercice '+n+' : '+e.t,PRINCIPE.ex[n])+voirAussi(n)+`<details class="fiche"><summary>Voir l’exercice ${esc(e.n)} : ${esc(e.t)}</summary><dl class="f">
     <dt>Consigne</dt><dd>${esc(e.c)}</dd>
     ${e.j?`<dt>Joueur</dt><dd>${esc(e.j)}</dd>`:''}
     ${e.p?`<dt>Partenaires</dt><dd>${esc(e.p)}</dd>`:''}
@@ -137,7 +138,7 @@ function vSeance(){
       <select data-ch="axe" data-slot="${sl}" aria-label="Axe ${sl+1}">${optAxes(k,r.axes[1-sl],E.id)}</select>`;
     if(a){
       h+=`<p style="margin:8px 0 0"><span class="fam ${famCl(a)}">${a.afl}</span> ${q?`<span class="ok">✓ match à thème validé${q!==n?' (séance '+q+')':''}</span>`:'<span class="small muted">match à thème pas encore validé</span>'}</p>`;
-      h+=`<details class="fiche"><summary>Le match à thème de cet axe</summary>${a.th.map(t=>{const T=theme(t);return `<dl class="f"><dt>Thème ${t} · ${esc(T.t)}</dt><dd>${illustration(IMG_MT.has(t)?'img/mt'+t+'.jpg':'',VID.mt[t],'Match à thème '+t)}</dd><dd>${esc(T.match)}</dd><dt>Je me reconnais si…</dt><dd><ul>${T.prob.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></dd></dl>`}).join('')}</details>`;
+      h+=`<details class="fiche"><summary>Le match à thème de cet axe</summary>${a.th.map(t=>{const T=theme(t);return `<dl class="f"><dt>Thème ${t} · ${esc(T.t)}</dt><dd>${illustration(IMG_MT.has(t)?'img/mt'+t+'.jpg':'',VID.mt[t],'Match à thème '+t,PRINCIPE.mt[t])}</dd><dt>Règle complète</dt><dd>${esc(T.match)}</dd><dt>Je me reconnais si…</dt><dd><ul>${T.prob.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></dd></dl>`}).join('')}</details>`;
       r.exos.forEach((x,i)=>{if(x.slot!==sl)return;
         const solo=r.exos.filter(y=>y.slot===sl).length===1;
         h+=`<div class="exo"><label class="ch">Exercice choisi</label><select data-ch="ex" data-i="${i}" aria-label="Numéro d’exercice">${optExos(k,x.ex)}</select>
