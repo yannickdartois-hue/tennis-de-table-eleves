@@ -86,7 +86,7 @@ function vGroupe(){
     <label class="bt mini" for="reprise">Reprendre un carnet</label><input id="reprise" type="file" accept=".json,application/json" hidden></div>
   </div>
   ${S.eleves.length?`<div class="carte"><button class="bt mini danger" type="button" data-act="toutEffacer">Effacer toutes les données de ce téléphone</button></div>`:''}
-  <p class="rgpd">Les données restent sur ce téléphone. Elles partent seulement quand tu les envoies à ton professeur (QR code ou dépôt dans le Nuage de l’Éducation nationale).</p>`;
+  <p class="rgpd">Les données restent sur ce téléphone. Elles partent seulement quand tu les envoies à ton professeur (QR code ou envoi en ligne).</p>`;
 }
 
 /* ----- Séance ----- */
