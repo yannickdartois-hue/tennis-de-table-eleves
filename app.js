@@ -22,7 +22,7 @@ function exInfo(n){for(const t of GA.themes){const e=t.ex.find(x=>x.n===n);if(e)
 
 /* ---------- État ---------- */
 let S=charger();
-function vide(){return {v:VERSION,classe:'',eleves:[],depot:'',cur:0,seance:1,tab:'seance',d:{},poules:{},envoi:{}}}
+function vide(){return {v:VERSION,classe:'',eleves:[],depot:'',cur:0,seance:1,tab:'seance',d:{},poules:{},envoi:{},hist:{}}}
 function charger(){try{const o=JSON.parse(localStorage.getItem(CLE));if(o&&o.v)return Object.assign(vide(),o)}catch(e){}return vide()}
 function sauver(){try{localStorage.setItem(CLE,JSON.stringify(S))}catch(e){toast('Mémoire du téléphone pleine : envoie tes fichiers.')}}
 const elv=()=>S.eleves[S.cur]||S.eleves[0];
@@ -79,6 +79,11 @@ function vGroupe(){
     <label class="ch" for="g-classe">Classe</label><input id="g-classe" type="text" placeholder="1G3" value="${esc(S.classe)}" autocomplete="off">
     ${L.map((e,i)=>`<label class="ch" for="g-e${i}">Élève ${i+1}${i===2?' (si vous êtes 3)':''}</label><input id="g-e${i}" data-id="${esc(e.id)}" type="text" placeholder="Prénom Nom" value="${esc(e.nom)}" autocomplete="off">`).join('')}
     <div class="rangee" style="margin-top:14px"><button class="bt orange" type="button" data-act="gvalider">Enregistrer le groupe</button></div>
+  </div>
+  <div class="carte"><h3>Un élève change de groupe</h3>
+    <p class="small muted">Son étoile, ses axes, ses matchs à thème validés et ses poules le suivent sur l’autre téléphone.</p>
+    ${S.eleves.length?`<p class="small"><b>Il part d’ici :</b></p><div class="rangee">${S.eleves.map((e,i)=>`<button class="bt mini" type="button" data-act="tpartir" data-v="${i}">${esc(e.nom.split(/\s+/)[0]||e.nom)} part</button>`).join('')}</div>`:''}
+    ${S.eleves.length<3?`<p class="small" style="margin-top:12px"><b>Il arrive ici :</b></p><button class="bt orange mini" type="button" data-act="tarrive">Scanner le QR de l’élève qui arrive</button>`:'<p class="small muted" style="margin-top:12px">Le groupe est complet (3) : pour accueillir un élève, retire d’abord quelqu’un.</p>'}
   </div>
   <div class="carte"><h3>Changer de téléphone</h3>
     <p class="small muted">Tout est gardé sur ce téléphone. Pour continuer sur un autre, enregistre le carnet du groupe ici, puis reprends-le là-bas.</p>
@@ -250,8 +255,11 @@ function formPoule(P){
 }
 function historique(){
   const E=elv();if(!E)return '';
-  const L=Object.keys(S.poules).map(Number).sort((a,b)=>a-b).map(n=>{const P=S.poules[n],i=P.joueurs.indexOf(E.nom);if(i<0||!P.matchs)return null;const r=TTL.resumePoule(P,i);return `<tr><td>${n}</td><td>${P.num}</td><td>${r.rang}/${r.nbJoueurs}</td><td>${r.victoires}-${r.defaites}</td><td class="small">${esc(r.mouvement||'')}</td></tr>`}).filter(Boolean);
-  return L.length?`<section class="carte" id="phist"><h3>Mes poules · ${esc(E.nom)}</h3><table class="cl"><thead><tr><th>Séance</th><th>Poule</th><th>Rang</th><th>V-D</th><th>Ensuite</th></tr></thead><tbody>${L.join('')}</tbody></table><p class="small muted">Seules les poules saisies sur ce téléphone apparaissent ici.</p></section>`:'';
+  const R={};
+  (S.hist[E.id]||[]).forEach(h=>{R[h[0]]={num:h[1],rang:h[2],n:h[3],v:h[4],d:h[5],mv:h[6]||''}});
+  Object.keys(S.poules).forEach(k=>{const n=+k,P=S.poules[n],i=P.joueurs.indexOf(E.nom);if(i<0||!P.matchs)return;const r=TTL.resumePoule(P,i);R[n]={num:P.num,rang:r.rang,n:r.nbJoueurs,v:r.victoires,d:r.defaites,mv:r.mouvement||''}});
+  const L=Object.keys(R).map(Number).sort((a,b)=>a-b).map(n=>{const r=R[n];return `<tr><td>${n}</td><td>${r.num}</td><td>${r.rang}/${r.n}</td><td>${r.v}-${r.d}</td><td class="small">${esc(r.mv)}</td></tr>`});
+  return L.length?`<section class="carte" id="phist"><h3>Mes poules · ${esc(E.nom)}</h3><table class="cl"><thead><tr><th>Séance</th><th>Poule</th><th>Rang</th><th>V-D</th><th>Ensuite</th></tr></thead><tbody>${L.join('')}</tbody></table></section>`:'';
 }
 
 /* ----- Règles du jeu et gestes techniques ----- */
@@ -274,6 +282,7 @@ function ouvrirVideo(u,t){
 function exportEleve(E,n){
   const P=S.poules[n],pi=P&&P.matchs?P.joueurs.indexOf(E.nom):-1;
   let r=(S.d[E.id]||{})[n];
+  if(r&&r.imp&&!r.date)r=null; // reçu d'un autre téléphone, déjà envoyé de là-bas
   if(!r){if(pi<0)return null;r={date:today(),axes:[],chg:[],exos:[],val:{},rq:'',etoile:null,grille:null}} // dans la poule mais rien d'autre saisi
   return {app:'tennis-de-table-eleves',version:VERSION,activite:'Tennis de table',classe:S.classe,eleve:E.nom,seance:n,date:r.date||today(),exportedAt:new Date().toISOString(),
     axes:r.axes.filter(Boolean).map(k=>{const a=axe(k);return {axe:k,nom:a.n,afl:a.afl,valideAujourdhui:!!r.val[k],valideDepuisSeance:valideQuand(E.id,k)}}),
@@ -282,14 +291,16 @@ function exportEleve(E,n){
     bilan:r.rq||'',
     etoile:r.etoile&&Object.keys(r.etoile).length?GA.axes.map(a=>({axe:a.k,nom:a.n,degre:r.etoile[a.k]||null,libelle:r.etoile[a.k]?GA.deg[r.etoile[a.k]-1]:''})):null,
     grilleCoach:r.grille?Object.assign({scoreObserve:r.grille.c1+2*r.grille.c2+3*r.grille.c3},r.grille):null,
-    poule:pi>=0?TTL.resumePoule(P,pi):null};
+    poule:pi>=0?Object.assign(TTL.resumePoule(P,pi),{brut:pouleBrute(P)}):null};
 }
+// La poule complète (tous les matchs, manche par manche) : l'outil prof reconstruit le tableau et le classement.
+function pouleBrute(P){return {num:P.num,fmt:P.fmt,joueurs:P.joueurs.slice(),matchs:P.matchs.map(m=>({a:m.a,b:m.b,arb:m.arb,f:m.f||null,m:(m.m||[]).filter(x=>x&&x[0]!==''&&x[1]!==''&&x[0]!=null&&x[1]!=null).map(x=>[+x[0],+x[1]])}))}}
 function fichiers(n){
   const L=[];
   S.eleves.forEach(E=>{const o=exportEleve(E,n);if(o)L.push({nom:TTL.nomFichier(S.classe,E.nom,n),o})});
   const P=S.poules[n];
   if(P&&P.matchs){const mine=new Set(S.eleves.map(e=>e.nom));P.joueurs.forEach((j,i)=>{if(mine.has(j))return;
-    L.push({nom:TTL.nomFichier(S.classe,j,n,'poule'),o:{app:'tennis-de-table-eleves',version:VERSION,type:'poule',activite:'Tennis de table',classe:S.classe,eleve:j,seance:n,date:today(),exportedAt:new Date().toISOString(),saisiPar:S.eleves.map(e=>e.nom).join(', '),poule:TTL.resumePoule(P,i)}})})}
+    L.push({nom:TTL.nomFichier(S.classe,j,n,'poule'),o:{app:'tennis-de-table-eleves',version:VERSION,type:'poule',activite:'Tennis de table',classe:S.classe,eleve:j,seance:n,date:today(),exportedAt:new Date().toISOString(),saisiPar:S.eleves.map(e=>e.nom).join(', '),poule:Object.assign(TTL.resumePoule(P,i),{brut:pouleBrute(P)})}})})}
   return L;
 }
 function vEnvoi(){
@@ -313,6 +324,36 @@ function vEnvoi(){
     <button class="bt noir" type="button" data-act="qr" ${F.length?'':'disabled'}>Montrer le QR code</button>
     ${ev.qr?`<p class="ok small">✓ QR montré à ${heure(ev.qr)}</p>`:''}
   </div>`;
+}
+
+/* ---------- Transfert d'un élève vers un autre téléphone ---------- */
+function historiqueEleve(E){
+  const h={s:[],p:[]};
+  seancesDe(E.id).forEach(n=>{const r=S.d[E.id][n];const val=Object.keys(r.val||{}).filter(k=>r.val[k]);
+    const et=r.etoile&&Object.keys(r.etoile).length?GA.axes.map(a=>r.etoile[a.k]||0):0;
+    if(r.axes.some(Boolean)||val.length||et)h.s.push([n,r.axes.map(x=>x||''),val,et])});
+  const R={};(S.hist[E.id]||[]).forEach(x=>R[x[0]]=x);
+  Object.keys(S.poules).forEach(k=>{const n=+k,P=S.poules[n],i=P.joueurs.indexOf(E.nom);if(i<0||!P.matchs)return;const r=TTL.resumePoule(P,i);R[n]=[n,P.num,r.rang,r.nbJoueurs,r.victoires,r.defaites,r.mouvement||'']});
+  h.p=Object.values(R).sort((a,b)=>a[0]-b[0]);
+  return {a:'TTE',v:1,t:'T',c:S.classe,e:E.nom,h};
+}
+async function montrerTransfert(i){
+  const E=S.eleves[i],txt=await chaineBrute(historiqueEleve(E));
+  let svg;try{svg=qrSvg(txt)}catch(e){svg='<p class="avert">Historique trop long pour un QR.</p>'}
+  fen(`<h3>${esc(E.nom)} change de groupe</h3><p class="small muted">Sur le téléphone de son nouveau groupe : Groupe → « Scanner le QR de l’élève qui arrive ».</p><div class="qrbox">${svg}</div>
+    <div class="rangee" style="margin-top:12px;justify-content:space-between"><button class="bt" type="button" data-act="fermer">Fermer</button><button class="bt danger" type="button" data-act="tretirer" data-v="${i}">C’est fait : retirer ${esc(E.nom.split(/\s+/)[0])} d’ici</button></div>`);
+}
+function accueillir(o){
+  if(o.t!=='T')throw new Error('Ce n’est pas un QR de changement de groupe.');
+  if(S.eleves.some(e=>e.nom.toLowerCase()===String(o.e).toLowerCase()))throw new Error(o.e+' est déjà dans ce groupe.');
+  if(S.eleves.length>=3)throw new Error('Le groupe est déjà complet (3 élèves).');
+  const id=uid();S.eleves.push({id,nom:o.e});if(!S.classe&&o.c)S.classe=o.c;
+  S.d[id]={};
+  ((o.h&&o.h.s)||[]).forEach(([n,ax,val,et])=>{const e={};if(et)GA.axes.forEach((a,k)=>{if(et[k])e[a.k]=et[k]});
+    S.d[id][n]={date:null,imp:true,axes:[ax[0]||null,ax[1]||null],chg:[],exos:[],val:Object.fromEntries((val||[]).map(k=>[k,true])),rq:'',etoile:Object.keys(e).length?e:null,grille:null}});
+  S.hist[id]=(o.h&&o.h.p)||[];
+  S.cur=S.eleves.length-1;sauver();rendre();
+  return o.e+' a rejoint le groupe.';
 }
 
 /* ---------- Fenêtres ---------- */
@@ -340,7 +381,7 @@ function qrSvg(txt){
   const q=qrcode(0,'L');q.addData(txt,'Byte');q.make();
   const c=q.getModuleCount(),m=4;let p='';
   for(let y=0;y<c;y++)for(let x=0;x<c;x++)if(q.isDark(y,x))p+=`M${x+m} ${y+m}h1v1h-1z`;
-  return `<svg viewBox="0 0 ${c+2*m} ${c+2*m}" shape-rendering="crispEdges" role="img" aria-label="QR code"><rect width="100%" height="100%" fill="#fff"/><path d="${p}" fill="#000"/></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${c+2*m} ${c+2*m}" shape-rendering="crispEdges" role="img" aria-label="QR code"><rect width="100%" height="100%" fill="#fff"/><path d="${p}" fill="#000"/></svg>`;
 }
 async function montrerQR(i){
   if(!QRS){const n=S.seance;const F=fichiers(n);
@@ -349,7 +390,7 @@ async function montrerQR(i){
     for(const f of el){const k=S.eleves.findIndex(E=>E.nom===f.o.eleve);QRS.push({titre:(k>=0?'ABC'[k]+' · ':'')+f.o.eleve,txt:await TTL.chaineQR(f.o)})}
     const P=S.poules[n];
     if(P&&P.matchs){const o={classe:S.classe,eleve:'Poule '+P.num,seance:n,date:today(),type:'poule'};
-      const q={a:'TTE',v:1,t:'P',c:S.classe,s:n,d:today(),p:[P.num,P.fmt,P.joueurs,P.matchs.map(m=>[m.a,m.b,m.arb,m.f||'',(m.m||[]).filter(x=>x&&x[0]!==''&&x[1]!=='').map(x=>[+x[0],+x[1]])])]};
+      const q={a:'TTE',v:1,t:'P',c:S.classe,s:n,d:today(),ts:Math.round(Date.now()/1000),p:[P.num,P.fmt,P.joueurs,P.matchs.map(m=>[m.a,m.b,m.arb,m.f||'',(m.m||[]).filter(x=>x&&x[0]!==''&&x[1]!=='').map(x=>[+x[0],+x[1]])])]};
       QRS.push({titre:'Poule '+P.num+' (tous les matchs)',txt:await chaineBrute(q)})}
   }
   const k=Math.max(0,Math.min(i,QRS.length-1)),Q=QRS[k];
@@ -385,6 +426,9 @@ document.addEventListener('click',async ev=>{
     case 'tab':S.tab=v;break;
     case 'video':ouvrirVideo(b.dataset.u,b.dataset.t);return;
     case 'fermer':fermer();return;
+    case 'tpartir':await montrerTransfert(+v);return;
+    case 'tretirer':{const E=S.eleves[+v];S.eleves.splice(+v,1);S.cur=0;fermer();toast((E?E.nom:'L’élève')+' est retiré du groupe.');break}
+    case 'tarrive':TTQR.scanner(async t=>accueillir(await TTQR.decoder(t)),{titre:'Élève qui arrive',aide:'Scanne le QR affiché sur le téléphone de son ancien groupe.'});return;
     case 'groupe':S.tab='groupe';break;
     case 'seance':S.seance=+v;QRS=null;break;
     case 'qui':S.cur=+v;break;

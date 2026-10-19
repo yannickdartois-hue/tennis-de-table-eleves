@@ -22,3 +22,15 @@ Données GAREEPS reprises de `tennis-de-table` (sans modification). QR : qrcode-
 - `videos.js` : correspondance exercice → vidéo de la chaîne PeerTube `tennis_de_table_montpellier` (apps.education.fr). Une nouvelle vidéo = une ligne à ajouter.
 - `img/` : illustrations des exercices et des matchs à thème, découpées dans le document « cycle complet TT GAREEPS ». Toucher l'image ouvre la vidéo (lecteur intégré, internet nécessaire).
 - Onglet **Règles** : règles du service, du double, gestes de l'arbitre, effet coupé, top spin, et les 8 matchs à thème.
+
+## Changement de groupe (19/10/2026)
+Groupe → « … part » affiche un QR avec l'historique de l'élève (étoile, axes, matchs à thème validés, poules). Sur le téléphone du nouveau groupe : Groupe → « Scanner le QR de l'élève qui arrive ». Les séances reçues ne sont pas renvoyées une seconde fois.
+
+## Outil prof : `prof.html`
+Adresse : `https://yannickdartois-hue.github.io/tennis-de-table-eleves/prof.html` (aucun lien depuis l'appli élève).
+- **Importer** : scanner les QR des élèves à la suite (caméra), ou choisir les fichiers .json / le .zip du dossier Nuage. Pas de doublon si on réimporte.
+- **Tournoi** : pour chaque séance, chaque poule avec ses joueurs, le classement (points, V, D, manches et points gagnés-perdus, montée ↑ / descente ↓) et tous les matchs manche par manche.
+- **Élèves** : tableau de la classe (poule et rang à chaque séance, totaux) ; fiche de chaque élève (matchs, séances de travail, critères atteints, changements d'axe, étoile début / fin) ; fusion de deux noms mal tapés.
+- **Exporter** : 3 fichiers CSV pour Excel (bilan par élève, tournoi séance par séance, séances de travail).
+- Données gardées sur l'appareil du prof ; sauvegarde / restauration pour passer de l'iPad au PC.
+Bibliothèques : jsQR (Apache 2.0), JSZip (MIT).

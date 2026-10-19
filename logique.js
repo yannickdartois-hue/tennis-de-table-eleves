@@ -125,7 +125,7 @@ function nomFichier(classe,eleve,seance,suffixe){
 /* ---------- QR : version compacte d'un fichier ---------- */
 const cut=(s,n)=>{s=String(s||'');return s.length>n?s.slice(0,n-1)+'…':s};
 function versQR(o){
-  const q={a:'TTE',v:1,c:o.classe,e:o.eleve,s:o.seance,d:o.date};
+  const q={a:'TTE',v:1,c:o.classe,e:o.eleve,s:o.seance,d:o.date,ts:Math.round(Date.now()/1000)};
   if(o.type==='poule'){q.t='p'}
   else{
     q.x=(o.axes||[]).map(a=>[a.axe,a.valideAujourdhui?1:0]);
