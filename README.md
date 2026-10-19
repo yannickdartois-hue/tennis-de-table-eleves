@@ -46,3 +46,9 @@ Une tablette garde un carnet par groupe, toutes classes confondues. Chaque carne
 
 ## Tours de poule (19/10/2026)
 Onglet Poule : boutons « Tour 1 à 4 ». D'habitude un seul tour ; le jour de l'évaluation, 4 tours (le 1er sert de calage). Chaque tour part dans les fichiers (`tours`) et a son propre QR « Poule ». Côté prof, séance 8 tour 2 = « 8.2 ».
+
+## Tableau de marque, projets de jeu, observateur (19/10/2026)
+- **Tableau de marque** (bouton 🏓 de chaque match) : plein écran, on touche le côté du joueur qui marque ; le service est indiqué (2 points chacun, puis 1 à partir de 10-10) ; la manche s'enregistre seule à 11 avec 2 points d'écart ; changement de côté à chaque manche.
+- **Projets de jeu** : avant le match, chaque joueur annonce son projet (liste commune dans `logique.js`) ; après, l'arbitre dit s'il est réalisé. Sert à la note « choix tactiques ».
+- **Vérifié par l'observateur** : un niveau d'exercice compte quand un camarade (ou le prof) le confirme.
+- **Séance du jour** : à l'ouverture, l'appli prend la séance déjà commencée aujourd'hui, sinon la suivante de la dernière faite.

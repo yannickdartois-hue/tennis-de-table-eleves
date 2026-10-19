@@ -38,6 +38,7 @@ function charger(){
   return R;
 }
 let ROOT=charger(),S=null,ACTIF=null,CLEF=null;
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 function ecrireRoot(){try{localStorage.setItem(CLE,JSON.stringify(ROOT))}catch(e){toast('Mémoire pleine : envoie les fichiers puis supprime les anciens groupes.')}}
 const b64=u=>{let x='';new Uint8Array(u).forEach(c=>x+=String.fromCharCode(c));return btoa(x)};
 const deb64=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
@@ -64,8 +65,19 @@ async function ouvrir(id,code){
     CLEF=k;S=Object.assign(vide(),JSON.parse(txt))}
   ACTIF=id;
   if(S.classe&&ROOT.classes[S.classe])S.cfg=JSON.parse(JSON.stringify(ROOT.classes[S.classe])); // liste de classe la plus récente
-  if(!S.eleves.length)S.tab='groupe';else if(S.tab==='groupe')S.tab='seance';
+  if(!S.eleves.length)S.tab='groupe';else S.tab='seance';
+  S.cur=0;S.tour=1;seanceDuJour();
   await enregistrer();
+}
+// La séance s'ouvre toute seule : celle déjà notée aujourd'hui, sinon la suivante de la dernière faite un autre jour.
+function seanceDuJour(){
+  const t=today();S.jours=S.jours||{};
+  if(S.jours[t]){S.seance=S.jours[t];return}
+  let der=0,dd='';
+  S.eleves.forEach(e=>Object.entries(S.d[e.id]||{}).forEach(([n,r])=>{if(r.date&&+n>der){der=+n;dd=r.date}}));
+  Object.keys(S.poules).forEach(k=>{if(+k>der)der=Math.floor(+k)});
+  if(der&&dd!==t){S.seance=Math.min(NB_SEANCES,der+1);setTimeout(()=>toast('Séance '+S.seance+' aujourd’hui (touche un autre numéro si besoin).'),400)}
+  S.jours[t]=S.seance;
 }
 async function verrouiller(){await enregistrer();S=null;ACTIF=null;CLEF=null}
 async function nouveauGroupe(classe,code){
@@ -208,6 +220,12 @@ function critereDe(e,c){const r=criteresEx(e).find(x=>x.c===c);return r?r.t:''}
 function choixCriteres(e,i,v){
   return `<div class="crit" role="radiogroup" aria-label="Niveau atteint">${criteresEx(e).map(r=>`<button type="button" role="radio" aria-checked="${v===r.c}" data-act="niv" data-i="${i}" data-v="${r.c}" class="${v===r.c?'on':''}"><i class="p${r.c}"></i><span><small>${esc(GA.deg[r.c-1])}</small>${esc(r.t)}</span><em aria-hidden="true">${v===r.c?'✓':''}</em></button>`).join('')}</div>`;
 }
+// Le niveau compte vraiment quand un camarade (l'observateur) l'a vu et le confirme.
+function verifPar(E,i,x){
+  const autres=S.eleves.filter(e=>e.id!==E.id).map(e=>e.nom);
+  return `<label class="ch">Vérifié par l’observateur</label><div class="verif">${autres.map(n=>`<button type="button" data-act="verif" data-i="${i}" data-v="${esc(n)}" class="${x.obs===n?'on':''}">${x.obs===n?'✓ ':''}${esc(n.split(/\s+/)[0])}</button>`).join('')}<button type="button" data-act="verif" data-i="${i}" data-v="Professeur" class="${x.obs==='Professeur'?'on':''}">${x.obs==='Professeur'?'✓ ':''}Prof</button></div>
+  ${x.obs?'':'<p class="small muted" style="margin:4px 0 0">Pas encore vérifié : l’observateur regarde l’exercice et confirme le niveau.</p>'}`;
+}
 function puces(nb,i){const l=nb===3?['●','●●','●●●']:nb===2?['●●','●●●']:['●●●'];return l[i]||'●●●'}
 const IMG_EX=new Set(['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31','32','33','34','A1','A2','A3','A4','R1','R2','R3','R4','R5','R6','R7','R8','R9','R10','R11']);
 const IMG_MT=new Set([1,2,3,4,5,6,7]);
@@ -254,7 +272,7 @@ function vSeance(){
       r.exos.forEach((x,i)=>{if(x.slot!==sl)return;
         const solo=r.exos.filter(y=>y.slot===sl).length===1;
         h+=`<div class="exo"><label class="ch">Exercice choisi</label><select data-ch="ex" data-i="${i}" aria-label="Numéro d’exercice">${optExos(k,x.ex)}</select>
-          ${x.ex?fiche(x.ex)+`<label class="ch" style="margin-top:12px">J’ai atteint… <span class="small muted" style="font-weight:400">(touche ta ligne)</span></label>${choixCriteres(exInfo(x.ex).e,i,x.niv)}
+          ${x.ex?fiche(x.ex)+`<label class="ch" style="margin-top:12px">J’ai atteint… <span class="small muted" style="font-weight:400">(touche ta ligne)</span></label>${choixCriteres(exInfo(x.ex).e,i,x.niv)}${x.niv?verifPar(E,i,x):''}
           <label class="ch">Remarque</label><input type="text" data-ch="exrq" data-i="${i}" value="${esc(x.rq)}" placeholder="ex. 6 sur 10, revers à revoir">`:''}
           ${solo?'':`<div style="margin-top:8px"><button class="bt mini" type="button" data-act="delex" data-i="${i}">Retirer cet exercice</button></div>`}</div>`;
       });
@@ -328,6 +346,8 @@ function vPoule(){
   let h=choixTour()+`<h2>Poule ${P.num} · séance ${n}${(S.tour||1)>1?' · tour '+S.tour:''}</h2><p class="muted small">${P.joueurs.length} joueurs · ${P.fmt==='1'?'1 manche':P.fmt+' manches gagnantes'} · un seul téléphone par poule saisit les scores.</p>`;
   h+=`<section class="carte"><h3>Les matchs</h3>${P.matchs.map((m,i)=>{const e=TTL.etatMatch(m,P.fmt),A=P.joueurs[m.a],B=P.joueurs[m.b];
     return `<div class="match"><div class="tete"><b>${i+1}. ${esc(A)} – ${esc(B)}</b><span id="mb-${i}">${badge(P,m)}</span></div>
+      <div class="rangee mq"><button type="button" class="bt mini orange" data-act="marque" data-m="${i}">🏓 Tableau de marque</button><button type="button" class="bt mini" data-act="projets" data-m="${i}">Projets${m.pj&&(m.pj[0]!=null||m.pj[1]!=null)?' ✓':''}</button></div>
+      ${m.pj&&(m.pj[0]!=null||m.pj[1]!=null)?`<div class="small">${[0,1].filter(j=>m.pj[j]!=null).map(j=>`${esc((j?B:A).split(/\s+/)[0])} : ${esc(TTL.PROJETS[m.pj[j]])}${m.pjok&&m.pjok[j]!=null?(m.pjok[j]?' ✓ réussi':' ✗ non réussi'):''}`).join(' · ')}</div>`:''}
       <div class="small muted">${P.arbDisp?'Arbitre : '+esc(P.arbDisp)+' (dispensé)':m.arb!=null?'Arbitre : '+esc(P.joueurs[m.arb]):'Pas d’arbitre libre : les joueurs comptent'}</div>
       <div class="sets">${[...Array(need)].map((_,s)=>{const v=(m.m||[])[s]||['',''];return `<span class="set"><input inputmode="numeric" pattern="[0-9]*" maxlength="2" data-ch="set" data-m="${i}" data-s="${s}" data-c="0" value="${esc(v[0])}" aria-label="Manche ${s+1}, points de ${esc(A)}">–<input inputmode="numeric" pattern="[0-9]*" maxlength="2" data-ch="set" data-m="${i}" data-s="${s}" data-c="1" value="${esc(v[1])}" aria-label="Manche ${s+1}, points de ${esc(B)}"></span>`}).join('')}
       <select data-ch="forf" data-m="${i}" style="width:auto;min-height:44px" aria-label="Forfait"><option value="">Joué</option><option value="a"${m.f==='a'?' selected':''}>Forfait ${esc(A)}</option><option value="b"${m.f==='b'?' selected':''}>Forfait ${esc(B)}</option></select></div></div>`}).join('')}</section>`;
@@ -402,7 +422,7 @@ function exportEleve(E,n){
   return {app:'tennis-de-table-eleves',version:VERSION,activite:'Tennis de table',classe:S.classe,eleve:E.nom,seance:n,date:r.date||today(),exportedAt:new Date().toISOString(),
     axes:r.axes.filter(Boolean).map(k=>{const a=axe(k);return {axe:k,nom:a.n,afl:a.afl,valideAujourdhui:!!r.val[k],valideDepuisSeance:valideQuand(E.id,k)}}),
     changementsAxe:r.chg.map(c=>({de:c.de,vers:c.vers,motif:c.motif,quand:c.ts})),
-    exercices:r.exos.filter(x=>x.ex).map(x=>{const i=exInfo(x.ex);return {axe:r.axes[x.slot],exercice:x.ex,theme:i?i.t.n:null,titre:i?i.e.t:'',niveau:x.niv||null,niveauLibelle:x.niv?GA.deg[x.niv-1]:'',critereAtteint:x.niv&&i?critereDe(i.e,x.niv):'',remarque:x.rq||''}}),
+    exercices:r.exos.filter(x=>x.ex).map(x=>{const i=exInfo(x.ex);return {axe:r.axes[x.slot],exercice:x.ex,theme:i?i.t.n:null,titre:i?i.e.t:'',niveau:x.niv||null,niveauLibelle:x.niv?GA.deg[x.niv-1]:'',critereAtteint:x.niv&&i?critereDe(i.e,x.niv):'',verifiePar:x.niv&&x.obs?x.obs:'',remarque:x.rq||''}}),
     bilan:r.rq||'',dispense:!!r.disp,
     etoile:r.etoile&&Object.keys(r.etoile).length?GA.axes.map(a=>({axe:a.k,nom:a.n,degre:r.etoile[a.k]||null,libelle:r.etoile[a.k]?GA.deg[r.etoile[a.k]-1]:''})):null,
     grilleCoach:r.grille?Object.assign({scoreObserve:r.grille.c1+2*r.grille.c2+3*r.grille.c3},r.grille):null,
@@ -411,7 +431,7 @@ function exportEleve(E,n){
     tours:tours.length?tours:undefined};
 }
 // La poule complète (tous les matchs, manche par manche) : l'outil prof reconstruit le tableau et le classement.
-function pouleBrute(P){return {num:P.num,fmt:P.fmt,arbDisp:P.arbDisp||'',joueurs:P.joueurs.slice(),matchs:P.matchs.map(m=>({a:m.a,b:m.b,arb:m.arb,f:m.f||null,m:(m.m||[]).filter(x=>x&&x[0]!==''&&x[1]!==''&&x[0]!=null&&x[1]!=null).map(x=>[+x[0],+x[1]])}))}}
+function pouleBrute(P){return {num:P.num,fmt:P.fmt,arbDisp:P.arbDisp||'',joueurs:P.joueurs.slice(),matchs:P.matchs.map(m=>({a:m.a,b:m.b,arb:m.arb,f:m.f||null,pj:m.pj||null,pjok:m.pjok||null,m:(m.m||[]).filter(x=>x&&x[0]!==''&&x[1]!==''&&x[0]!=null&&x[1]!=null).map(x=>[+x[0],+x[1]])}))}}
 function fichiers(n){
   const L=[];
   S.eleves.forEach(E=>{const o=exportEleve(E,n);if(o)L.push({nom:TTL.nomFichier(S.classe,E.nom,n),o})});
@@ -485,6 +505,59 @@ function accueillir(o){
   return o.e+' a rejoint le groupe.';
 }
 
+/* ---------- Projets de jeu ---------- */
+function fenProjets(i){
+  const P=S.poules[pk()],m=P.matchs[i],noms=[P.joueurs[m.a],P.joueurs[m.b]],pj=m.pj||[null,null],ok=m.pjok||[null,null],fini=TTL.etatMatch(m,P.fmt).fini;
+  fen(`<h3>Projets de jeu · match ${i+1}</h3><p class="small muted">Chaque joueur annonce à l’arbitre comment il prévoit de gagner. Après le match, l’arbitre dit si le projet a été réalisé.</p>
+    ${[0,1].map(j=>`<div class="carte" style="margin:8px 0"><b>${esc(noms[j])}</b>
+      <select data-ch="pj" data-m="${i}" data-j="${j}" style="margin-top:6px"><option value="">— Pas de projet annoncé —</option>${TTL.PROJETS.map((t,k)=>`<option value="${k}"${pj[j]===k?' selected':''}>${esc(t)}</option>`).join('')}</select>
+      ${pj[j]!=null?`<div class="rangee" style="margin-top:8px"><span class="small">Réalisé ?</span><button type="button" class="bt mini${ok[j]===true?' noir':''}" data-act="pjok" data-m="${i}" data-j="${j}" data-v="1">Oui</button><button type="button" class="bt mini${ok[j]===false?' noir':''}" data-act="pjok" data-m="${i}" data-j="${j}" data-v="0">Non</button>${fini?'':'<span class="small muted">(après le match)</span>'}</div>`:''}</div>`).join('')}
+    <div class="rangee" style="justify-content:flex-end"><button class="bt noir" type="button" data-act="fermerRendre">Fermer</button></div>`);
+}
+
+/* ---------- Tableau de marque (bord de table) ---------- */
+let MQ=null; // {i, cote: false = A à gauche}
+function ouvrirMarque(i){
+  const P=S.poules[pk()],m=P.matchs[i];
+  if(TTL.etatMatch(m,P.fmt).fini&&!confirm('Ce match est déjà terminé. Le rejouer au tableau de marque efface son score ?'))return;
+  if(TTL.etatMatch(m,P.fmt).fini){m.m=[];delete m.live}
+  MQ={i,inv:false};peindreMarque();
+}
+function peindreMarque(){
+  let z=document.getElementById('marque');if(!MQ){if(z)z.remove();return}
+  if(!z){z=document.createElement('div');z.id='marque';document.body.appendChild(z)}
+  const P=S.poules[pk()],m=P.matchs[MQ.i],e=TTL.etatMatch(m,P.fmt),noms={a:P.joueurs[m.a],b:P.joueurs[m.b]};
+  const need={'1':1,'2':2,'3':3}[P.fmt]||2,mset=(m.m||[]).filter(x=>x&&x[0]!==''&&x[1]!=='').length;
+  const arb=P.arbDisp||(m.arb!=null?P.joueurs[m.arb]:'');
+  let h=`<div class="mq-haut"><b>Match ${MQ.i+1}${arb?' · arbitre '+esc(arb.split(/\s+/)[0]):''}</b><span>Manches ${e.ma}-${e.mb} · ${need===1?'1 manche':need+' manches gagnantes'}</span><button type="button" class="bt mini" data-act="mqfermer">Fermer</button></div>`;
+  if(e.fini){
+    const pj=m.pj||[null,null],ok=m.pjok||[null,null];
+    h+=`<div class="mq-fin"><h2>${esc(noms[e.w])} gagne ${e.w==='a'?e.ma+'-'+e.mb:e.mb+'-'+e.ma}</h2><p>${esc(TTL.texteScore(m,P.fmt,e.w))}</p>
+      ${[0,1].filter(j=>pj[j]!=null).map(j=>`<div class="carte"><b>${esc(j?noms.b:noms.a)}</b> · ${esc(TTL.PROJETS[pj[j]])}<div class="rangee" style="margin-top:8px;justify-content:center"><span>Projet réalisé ?</span><button type="button" class="bt${ok[j]===true?' noir':''}" data-act="pjok" data-m="${MQ.i}" data-j="${j}" data-v="1">Oui</button><button type="button" class="bt${ok[j]===false?' noir':''}" data-act="pjok" data-m="${MQ.i}" data-j="${j}" data-v="0">Non</button></div></div>`).join('')}
+      <button type="button" class="bt orange" data-act="mqfermer" style="margin-top:12px">Terminé</button></div>`;
+  }else if(!m.live){
+    const prec=m.premier0;// qui a servi en premier à la manche précédente
+    h+=`<div class="mq-fin"><h2>Manche ${mset+1}</h2>${mset===0&&!(m.pj&&(m.pj[0]!=null||m.pj[1]!=null))?`<p><button type="button" class="bt" data-act="projets" data-m="${MQ.i}">Annoncer les projets de jeu</button></p>`:''}
+      <p>Qui sert en premier ?</p><div class="rangee" style="justify-content:center">${['a','b'].map(c=>`<button type="button" class="bt${prec&&prec!==c?' orange':''}" data-act="mqservice" data-v="${c}">${esc(noms[c])}</button>`).join('')}</div>
+      ${prec?'<p class="small muted">À la manche suivante, l’autre joueur sert en premier.</p>':''}</div>`;
+  }else{
+    const L=m.live,srv=TTL.serveur(L.p,L.a,L.b),cotes=MQ.inv?['b','a']:['a','b'];
+    h+=`<div class="mq-jeu">${cotes.map(c=>`<div class="mq-cote${srv===c?' sert':''}">
+        <button type="button" class="mq-plus" data-act="mqpoint" data-v="${c}" aria-label="Point pour ${esc(noms[c])}"><span class="mq-nom">${esc(noms[c])}</span><span class="mq-score">${L[c]}</span>${srv===c?'<span class="mq-srv">🏓 au service</span>':''}${m.pj&&m.pj[c==='a'?0:1]!=null?`<span class="mq-pj">${esc(TTL.PROJETS[m.pj[c==='a'?0:1]])}</span>`:''}</button>
+        <button type="button" class="bt mini" data-act="mqmoins" data-v="${c}">− 1</button></div>`).join('')}</div>
+      <div class="mq-bas"><button type="button" class="bt mini" data-act="mqinv">⇄ Changer de côté</button><span class="small">Touchez le côté du joueur qui marque.</span></div>`;
+  }
+  z.innerHTML=h;
+}
+function pointMarque(c,d){
+  const P=S.poules[pk()],m=P.matchs[MQ.i],L=m.live;if(!L)return;
+  L[c]=Math.max(0,L[c]+d);
+  if(TTL.mancheFinie(L.a,L.b)){m.m=(m.m||[]).filter(x=>x&&x[0]!==''&&x[1]!=='');m.m.push([L.a,L.b]);m.premier0=L.p;delete m.live;
+    if(!TTL.etatMatch(m,P.fmt).fini)MQ.inv=!MQ.inv; // on change de côté à chaque manche
+    try{navigator.vibrate&&navigator.vibrate([60,60,60])}catch(e){}}
+  QRS=null;sauver();peindreMarque();
+}
+
 /* ---------- Fenêtres ---------- */
 function fen(html,cl){$('#modal').innerHTML=`<div class="voile" data-act="fermerVoile"><div class="fen ${cl||''}" role="dialog" aria-modal="true">${html}</div></div>`}
 function fermer(){$('#modal').innerHTML='';PENDING=null;QRS=null}
@@ -518,7 +591,7 @@ async function montrerQR(i){
     const el=F.filter(f=>f.o.type!=='poule');QRS=[];
     for(const f of el){const k=S.eleves.findIndex(E=>E.nom===f.o.eleve);QRS.push({titre:(k>=0?'ABC'[k]+' · ':'')+f.o.eleve,txt:await TTL.chaineQR(f.o)})}
     for(const [t,P] of toursDe(n)){
-      const q={a:'TTE',v:1,t:'P',c:S.classe,s:+cleTour(n,t),d:today(),ts:Math.round(Date.now()/1000),p:[P.num,P.fmt,P.joueurs,P.arbDisp||'',P.matchs.map(m=>[m.a,m.b,m.arb,m.f||'',(m.m||[]).filter(x=>x&&x[0]!==''&&x[1]!=='').map(x=>[+x[0],+x[1]])])]};
+      const q={a:'TTE',v:1,t:'P',c:S.classe,s:+cleTour(n,t),d:today(),ts:Math.round(Date.now()/1000),p:[P.num,P.fmt,P.joueurs,P.arbDisp||'',P.matchs.map(m=>[m.a,m.b,m.arb,m.f||'',(m.m||[]).filter(x=>x&&x[0]!==''&&x[1]!=='').map(x=>[+x[0],+x[1]]),m.pj||0,m.pjok||0])]};
       QRS.push({titre:'Poule '+P.num+(t>1?' · tour '+t:'')+' (tous les matchs)',txt:await chaineBrute(q)})}
   }
   const k=Math.max(0,Math.min(i,QRS.length-1)),Q=QRS[k];
@@ -574,7 +647,7 @@ document.addEventListener('click',async ev=>{
     case 'qrclasse':TTQR.scanner(async t=>recevoirClasse(await TTQR.decoder(t)),{titre:'QR de la classe',aide:'Scanne le QR affiché par le professeur.'});return;
     case 'tarrive':TTQR.scanner(async t=>accueillir(await TTQR.decoder(t)),{titre:'Élève qui arrive',aide:'Scanne le QR affiché sur le téléphone de son ancien groupe.'});return;
     case 'groupe':S.tab='groupe';break;
-    case 'seance':S.seance=+v;S.tour=1;QRS=null;break;
+    case 'seance':S.seance=+v;S.tour=1;QRS=null;S.jours=S.jours||{};S.jours[today()]=S.seance;break;
     case 'qui':S.cur=+v;break;
     case 'gvalider':{
       const cl=S.cfg?S.cfg.classe:$('#g-classe').value.trim(),L=[];
@@ -586,7 +659,8 @@ document.addEventListener('click',async ev=>{
       S.classe=cl;S.eleves=L;S.cur=0;S.tab='seance';toast('Groupe enregistré.');break}
     case 'sauvegarde':telecharger('Carnet_TT_'+(TTL.slug(S.classe)||'groupe')+'_'+today()+'.json',JSON.stringify(Object.assign({carnetTT:1},S)));return;
     case 'toutEffacer':if(!confirm('Supprimer ce groupe et toutes ses séances de la tablette ? Envoie d’abord tes fichiers.'))return;delete ROOT.groupes[ACTIF];S=null;ACTIF=null;CLEF=null;ecrireRoot();rendre();return;
-    case 'niv':{const r=rec(E.id,n),x=r.exos[+b.dataset.i];x.niv=x.niv===+v?0:+v;touche(r);break}
+    case 'niv':{const r=rec(E.id,n),x=r.exos[+b.dataset.i];x.niv=x.niv===+v?0:+v;x.obs=null;touche(r);break}
+    case 'verif':{const r=rec(E.id,n),x=r.exos[+b.dataset.i];x.obs=x.obs===v?null:v;touche(r);break}
     case 'addex':{const r=rec(E.id,n);r.exos.push({slot:+b.dataset.slot,ex:null,niv:0,rq:''});break}
     case 'delex':{const r=rec(E.id,n);r.exos.splice(+b.dataset.i,1);break}
     case 'et':{const r=rec(E.id,n);r.etoile=r.etoile||{};r.etoile[b.dataset.k]=r.etoile[b.dataset.k]===+v?undefined:+v;if(r.etoile[b.dataset.k]==null)delete r.etoile[b.dataset.k];touche(r);break}
@@ -615,6 +689,15 @@ document.addEventListener('click',async ev=>{
     case 'pedit':S.poules[pk()].edit=true;break;
     case 'pannuler':{const k=pk();delete S.poules[k].edit;if(!S.poules[k].matchs)delete S.poules[k];break}
     case 'tour':S.tour=+v;QRS=null;break;
+    case 'projets':fenProjets(+b.dataset.m);return;
+    case 'pjok':{const P=S.poules[pk()],m=P.matchs[+b.dataset.m],j=+b.dataset.j;m.pjok=m.pjok||[null,null];m.pjok[j]=m.pjok[j]===(v==='1')?null:(v==='1');sauver();QRS=null;if(MQ){peindreMarque();return}fenProjets(+b.dataset.m);return}
+    case 'fermerRendre':fermer();if(MQ){peindreMarque();return}break;
+    case 'marque':ouvrirMarque(+b.dataset.m);return;
+    case 'mqfermer':MQ=null;peindreMarque();break;
+    case 'mqservice':{const m=S.poules[pk()].matchs[MQ.i];m.live={a:0,b:0,p:v};sauver();peindreMarque();return}
+    case 'mqpoint':pointMarque(v,1);return;
+    case 'mqmoins':pointMarque(v,-1);return;
+    case 'mqinv':MQ.inv=!MQ.inv;peindreMarque();return;
     case 'qr':QRS=null;await montrerQR(0);return;
     case 'qrnav':await montrerQR(+v);return;
     case 'qrfin':S.envoi[n]=Object.assign(S.envoi[n]||{},{qr:Date.now()});fermer();break;
@@ -647,6 +730,7 @@ document.addEventListener('change',async ev=>{
       if(r.disp)[0,1].forEach(sl=>{if(r.axes[sl]&&!AXES_DISP.includes(r.axes[sl]))changerAxe(r,sl,null,null)});
       if(!r.disp)delete r.disp;break}
     case 'val':r.val[t.dataset.k]=t.checked;if(!t.checked)delete r.val[t.dataset.k];touche(r);break;
+    case 'pj':{const P=S.poules[pk()],m=P.matchs[+t.dataset.m],j=+t.dataset.j;m.pj=m.pj||[null,null];m.pj[j]=t.value===''?null:+t.value;if(m.pjok)m.pjok[j]=null;QRS=null;sauver();fenProjets(+t.dataset.m);return}
     case 'forf':{const P=S.poules[pk()];P.matchs[+t.dataset.m].f=t.value||null;QRS=null;break}
     default:return;
   }
