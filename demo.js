@@ -43,7 +43,7 @@ function ouvrirDemo(){
   const L0=s.eleves[0];s.d[L0.id][3]={date:today(),axes:['cont','strat'],chg:[],exos:[{slot:0,ex:exosAxe('cont')[1]||exosAxe('cont')[0],niv:0,rq:''},{slot:1,ex:exosAxe('strat')[0],niv:4,rq:'',obs:'Hugo BERNARD'}],val:{},rq:'',etoile:null,grille:null};
   S=s;ACTIF=null;CLEF=null;DEMO=true;
   fermer();rendre();window.scrollTo(0,0);
-  toast('Mode démo : explore librement, rien n’est enregistré.');
+  // pas de toast : le bandeau « Mode démo » le dit déjà sans cacher l’en-tête
 }
 function quitterDemo(){DEMO=false;S=null;ACTIF=null;CLEF=null;MQ=null;peindreMarque();fermer();rendre();window.scrollTo(0,0);
   try{if(/[?&]demo\b/.test(location.search))history.replaceState(null,'',location.pathname)}catch(e){}}

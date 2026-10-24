@@ -60,9 +60,16 @@ async function enregistrer(){
 async function ouvrir(id,code){
   const g=ROOT.groupes[id];
   if(g.clair){const sel=crypto.getRandomValues(new Uint8Array(16));g.sel=b64(sel);CLEF=await deriver(code,sel);S=Object.assign(vide(),g.clair)}
-  else{const k=await deriver(code,deb64(g.sel));
-    let txt;try{txt=new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:deb64(g.iv)},k,deb64(g.data)))}catch(e){throw new Error('Code faux.')}
-    CLEF=k;S=Object.assign(vide(),JSON.parse(txt))}
+  else{
+    // Anti-essais : 4 chiffres = 10 000 codes. Après 5 erreurs, attente qui double (30 s, 1 min, 2 min… plafond 5 min :
+    // assez pour rendre l'essai de tous les codes impossible en cours, pas assez pour bloquer un groupe par malice).
+    const E=g.essais||{n:0,t:0};
+    if(E.t>Date.now())throw new Error('Trop d’essais. Réessayez dans '+Math.ceil((E.t-Date.now())/1000)+' s.');
+    const k=await deriver(code,deb64(g.sel));
+    let txt;try{txt=new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:deb64(g.iv)},k,deb64(g.data)))}
+    catch(e){E.n++;const att=Math.min(300,30*2**(E.n-5));if(E.n>=5)E.t=Date.now()+att*1000;g.essais=E;ecrireRoot();
+      throw new Error(E.n>=5?'Code faux. Trop d’essais : attendez '+(att<60?att+' s':att/60+' min')+'.':'Code faux ('+(5-E.n)+' essai'+(5-E.n>1?'s':'')+' avant attente).')}
+    delete g.essais;CLEF=k;S=Object.assign(vide(),JSON.parse(txt))}
   ACTIF=id;
   if(S.classe&&ROOT.classes[S.classe])S.cfg=JSON.parse(JSON.stringify(ROOT.classes[S.classe])); // liste de classe la plus récente
   if(!S.eleves.length)S.tab='groupe';else S.tab='seance';
@@ -639,7 +646,7 @@ document.addEventListener('click',async ev=>{
     if(g.clair)demanderCode('Protéger votre carnet','Choisissez un code secret de 4 chiffres pour votre groupe. Retenez-le : il sera demandé à chaque cours.',c=>ouvrir(v,c),true);
     else demanderCode('Code du groupe '+(g.noms||[]).join(' · '),'Tapez votre code secret à 4 chiffres.',c=>ouvrir(v,c),false);
     CODE_CB.id=v;return}
-  if(a==='nouveau'){demanderCode('Nouveau groupe · '+v,'Choisissez un code secret de 4 chiffres. Retenez-le : il sera demandé à chaque cours, et personne d’autre ne pourra ouvrir votre carnet.',c=>nouveauGroupe(v,c),true);return}
+  if(a==='nouveau'){demanderCode('Nouveau groupe · '+v,'Choisissez un code secret de 4 chiffres. Retenez-le : il sera demandé à chaque cours, et un autre groupe ne pourra pas ouvrir votre carnet.',c=>nouveauGroupe(v,c),true);return}
   if(a==='codeok'){await validerCode();return}
   if(a==='codeoubli'){const id=CODE_CB&&CODE_CB.id;if(!id)return;
     fen(`<h3>Code oublié</h3><p>Sans le code, ce carnet ne peut pas être ouvert, même par le professeur.</p><p class="small">Supprimez-le et créez un nouveau groupe. Le professeur vous donnera un <b>QR de reprise</b> pour chaque élève (étoile, axes, matchs à thème validés, poules) : dans le nouveau groupe, Mon groupe → « Scanner le QR de l’élève qui arrive ».</p>
