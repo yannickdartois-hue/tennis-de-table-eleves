@@ -233,6 +233,10 @@ ul.nvl{list-style:none;padding-left:0}ul.nvl li{display:flex;gap:8px;align-items
 .video{position:relative;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden}
 .video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .rgpd{font-size:13px;color:var(--repere)}
+/* Daltonisme : le numéro du niveau GAREEPS dans chaque pastille (rouge et vert se confondent pour 8 % des garçons) */
+i.p1,i.p2,i.p3,i.p4{display:inline-grid;place-items:center;font:900 10px/1 system-ui,sans-serif;font-style:normal}
+i.p1::after{content:"1";color:#fff}i.p2::after{content:"2";color:#000}i.p3::after{content:"3";color:#fff}i.p4::after{content:"4";color:#fff}
+.crit button i.p1::after,.crit button i.p2::after,.crit button i.p3::after,.crit button i.p4::after,.niv button i::after{font-size:15px}
 </style>
 </head>
 <body>
