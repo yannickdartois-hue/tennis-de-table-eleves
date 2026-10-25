@@ -1,6 +1,8 @@
 /* Hors ligne : l'appli est gardée sur le téléphone après la 1re ouverture.
    Après une modification, augmenter VERSION (ex. tte-v12 → tte-v12). */
-const VERSION='tte-v19';
+const VERSION='tte-v20';
+// Wi-Fi faible au gymnase : si le réseau ne répond pas en 3 s, on ouvre la copie gardée sur l'appareil.
+const sous3s=p=>{p.catch(()=>{});return Promise.race([p,new Promise((_,non)=>setTimeout(()=>non(new Error('réseau lent')),3000))])};
 const FICHIERS=['./','index.html','app.js','eleve-plus.js','demo.js','logique.js','donnees.js','qrcode.js','jsqr.js','scan.js','videos.js','principes.js','manifest.webmanifest',
   'icon-32.png','icon-180.png','icon-192.png','icon-512.png',
   'polices/archivo.woff2','polices/atkinson-400.woff2','polices/atkinson-700.woff2',
@@ -11,5 +13,6 @@ self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.
 // Réseau d'abord (pour recevoir les mises à jour), cache si pas de connexion.
 self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET'||new URL(e.request.url).origin!==location.origin)return;
-  e.respondWith(fetch(e.request).then(r=>{const c=r.clone();caches.open(VERSION).then(x=>x.put(e.request,c));return r}).catch(()=>caches.match(e.request,{ignoreSearch:true})));
+  const net=fetch(e.request).then(r=>{const c=r.clone();caches.open(VERSION).then(x=>x.put(e.request,c));return r});
+  e.respondWith(sous3s(net).catch(()=>caches.match(e.request,{ignoreSearch:true}).then(h=>h||net)));
 });
