@@ -237,6 +237,7 @@ ul.nvl{list-style:none;padding-left:0}ul.nvl li{display:flex;gap:8px;align-items
 i.p1,i.p2,i.p3,i.p4{display:inline-grid;place-items:center;font:900 max(10px,var(--fs-min,15px))/1 system-ui,sans-serif;font-style:normal}
 i.p1::after{content:"1";color:#fff}i.p2::after{content:"2";color:#000}i.p3::after{content:"3";color:#fff}i.p4::after{content:"4";color:#fff}
 .crit button i.p1::after,.crit button i.p2::after,.crit button i.p3::after,.crit button i.p4::after,.niv button i::after{font-size:15px}
+.baide{flex:0 0 auto;width:44px;min-width:44px;height:44px;padding:0!important;border-radius:50%!important;font-weight:900;font-size:19px;margin-left:auto}
 </style>
 <style>/* Lisibilité terrain : textes à 15 px minimum à l'écran ; tailles d'origine à l'impression. */@media print{:root{--fs-min:0px}}</style>
 <link rel="stylesheet" href="eps-charte-v1.css">
@@ -246,7 +247,7 @@ i.p1::after{content:"1";color:#fff}i.p2::after{content:"2";color:#000}i.p3::afte
 </head>
 <body>
 <header>
-  <div class="barre"><img src="icon-192.png" alt=""><div class="app">Tennis de table · Élève<small id="sous"></small></div><button class="bt mini" data-act="groupe" type="button">Mon groupe</button><button class="bt mini noir" data-act="changer" type="button">Changer</button></div>
+  <div class="barre"><img src="icon-192.png" alt=""><div class="app">Tennis de table · Élève<small id="sous"></small></div><button type="button" class="bt mini baide" onclick="EPSAide.ouvrir()" aria-label="Mode d’emploi" title="Mode d’emploi">?</button><button class="bt mini" data-act="groupe" type="button">Mon groupe</button><button class="bt mini noir" data-act="changer" type="button">Changer</button></div>
   <div class="trace"></div>
   <div class="seances" id="seances"></div>
 </header>
@@ -265,5 +266,7 @@ i.p1::after{content:"1";color:#fff}i.p2::after{content:"2";color:#000}i.p3::afte
 <script src="eleve-plus.js"></script>
 <script src="demo.js"></script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
+<script src="aide.js"></script>
+<script src="eps-aide.js"></script>
 </body>
 </html>
