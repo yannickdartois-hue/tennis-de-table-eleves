@@ -1,6 +1,6 @@
 /* Hors ligne : l'appli est gardée sur le téléphone après la 1re ouverture.
    Après une modification, augmenter VERSION (ex. tte-v12 → tte-v12). */
-const VERSION='tennis-de-table-eleves-v25';
+const VERSION='tennis-de-table-eleves-v26';
 // Toutes les applis partagent le même stockage (même adresse github.io) : on n'efface QUE les anciennes versions de CETTE appli.
 const MES_CACHES=/^(?:tennis\-de\-table\-eleves\-v|tte\-v)\d+$/;
 
