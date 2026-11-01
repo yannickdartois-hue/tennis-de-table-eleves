@@ -163,8 +163,11 @@ function peindreChrono(){
   const r=CH.pause?CH.reste:Math.max(0,CH.fin-Date.now()),s=Math.ceil(r/1000);
   if(!CH.pause&&r<=0&&!CH.sonne){CH.sonne=true;sonner()}
   z.className=s===0?'fini':s<=10?'bientot':'';
-  z.innerHTML=`<span class="ch-t">${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}</span>
-    <button type="button" class="bt mini" data-act="chronoPause">${CH.pause?'▶':'❚❚'}</button><button type="button" class="bt mini" data-act="chronoRe" aria-label="Recommencer">↺</button><button type="button" class="bt mini" data-act="chronoFin" aria-label="Fermer le chrono">✕</button>`;
+  // boutons construits une seule fois : redessinés 4 fois par seconde, un appui sur Pause pouvait se perdre
+  if(!z.querySelector('.ch-t'))z.innerHTML=`<span class="ch-t"></span>
+    <button type="button" class="bt mini" data-act="chronoPause"></button><button type="button" class="bt mini" data-act="chronoRe" aria-label="Recommencer">↺</button><button type="button" class="bt mini" data-act="chronoFin" aria-label="Fermer le chrono">✕</button>`;
+  const tt=Math.floor(s/60)+':'+String(s%60).padStart(2,'0'),bp=z.querySelector('[data-act="chronoPause"]'),lp=CH.pause?'▶':'❚❚';
+  if(z.querySelector('.ch-t').textContent!==tt)z.querySelector('.ch-t').textContent=tt;if(bp.textContent!==lp){bp.textContent=lp;bp.setAttribute('aria-label',CH.pause?'Reprendre':'Pause')}
 }
 let AC=null;
 function sonner(){
