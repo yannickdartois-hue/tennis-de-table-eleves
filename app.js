@@ -502,6 +502,7 @@ async function montrerTransfert(i){
 function recevoirClasse(o){
   if(o.t!=='C')throw new Error('Ce n’est pas le QR de la classe.');
   const cfg={classe:o.c,eleves:o.l||[],lien:o.u||'',k:o.k||''};
+  if(window.EPSCode)EPSCode.memoriserCle(o.c,o.cc);
   ROOT.classes[o.c]=cfg;
   ecrireRoot(); // les autres groupes de la classe recevront la nouvelle liste à leur ouverture
   if(!S||(S.eleves.length&&S.classe&&S.classe!==o.c)){setTimeout(()=>{if(S)verrouiller().then(rendre);demanderCode('Nouveau groupe · '+o.c,'Choisissez un code secret de 4 chiffres. Retenez-le : il sera demandé à chaque cours.',c=>nouveauGroupe(o.c,c),true)},300);return 'Classe '+o.c+' enregistrée.'}
@@ -773,3 +774,8 @@ document.addEventListener('input',ev=>{
   touche(r);sauver();
 });
 rendre();
+
+/* Code du cours (eps-code.js, commun) : la saisie ne s’ouvre qu’en cours, avec le code à 4 chiffres du professeur (2 h). */
+if(window.EPSCode)EPSCode.eleve({app:'tte',classe:()=>S&&S.classe||'',seance:()=>S?String(S.seance):'',seances:()=>Array.from({length:NB_SEANCES},(_,i)=>String(i+1)),nom:s=>'Séance '+s,
+  ouvrir:s=>{if(!S)return;S.seance=+s;S.jours=S.jours||{};S.jours[today()]=+s;S.tour=1;sauver();rendre()},
+  actif:()=>!!S&&['seance','etoile','poule'].includes(S.tab),libre:['qui','tour','video','tab','seance','fermer','fermerVoile','qrnav'],demo:()=>DEMO});
