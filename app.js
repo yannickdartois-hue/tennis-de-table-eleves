@@ -318,6 +318,27 @@ function radar(e,ref){
     g+=`<rect x="${rx}" y="${y-hh/2}" width="${w}" height="${hh}" rx="6" fill="${fam[a.afl][0]}"/><text text-anchor="${anc}" font-family="Atkinson,Arial" font-weight="700" font-size="17" fill="${fam[a.afl][1]}">${L.map((l,j)=>`<tspan x="${tx}" y="${y-hh/2+19+j*20}">${l}</tspan>`).join('')}</text>`});
   return g+`</svg>`;
 }
+/* Observation diagnostique (fiche papier de Yannick, Seconde) : l'observateur coche pour 3 matchs */
+const DIAG=[
+ ['serv','Service',[['1','Au centre, poussé'],['2','Au fond, côté varié'],['3','Au fond, frotté']]],
+ ['smash','Smash sur balle facile',[['1','Ne smashe pas ou trop'],['2','Repère la balle, essaie'],['3','Smashe et réussit']]],
+ ['traj','Variété des trajectoires',[['1','Renvoie sans intention'],['2','Alterne croisé / décroisé'],['3','Idem, frotté ou près des lignes']]],
+ ['jeu','Type de jeu',[['1','Poussette'],['2','Poussette + coup droit'],['3','Coup droit + revers']]],
+ ['effet','Effet',[['1','Non'],['3','Oui']]],
+ ['impact','Impact des balles',[['1','A · au centre'],['2','B · grande zone'],['3','C · près des lignes']]],
+ ['profil','Profil du joueur',[['1','A · attend la faute'],['2','B · met en difficulté'],['3','C · perturbe et conclut']]]];
+/* lien vers l'étoile : moyenne arrondie des 3 matchs, proposée (pas imposée) */
+const DIAG_ETOILE={strat:['profil'],cont:['jeu'],diff:['traj','impact','smash','serv']};
+function diagSuggestion(dg){const moy=ks=>{const v=[];[1,2,3].forEach(m=>ks.forEach(k=>{const x=+((dg[m]||{})[k]||0);if(x)v.push(x)}));return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):0};
+  const o={};Object.keys(DIAG_ETOILE).forEach(ax=>{const d=moy(DIAG_ETOILE[ax]);if(d)o[ax]=d});return o}
+function vDiag(r,n){const dg=r.diag||{},sug=diagSuggestion(dg);
+  return `<details class="carte"${n===1||S.diagM||(r.diag&&Object.keys(r.diag).length)?' open':''}><summary><h3 style="display:inline">1 bis · Observation diagnostique</h3></summary>
+   <p class="small muted">L’observateur regarde 3 matchs et coche, pour chaque match, ce qu’il voit le plus souvent.</p>
+   <div class="rangee" style="gap:6px;margin:6px 0">${[1,2,3].map(m=>{const nb=Object.keys(dg[m]||{}).length;return `<button type="button" class="bt mini${(S.diagM||1)===m?' noir':''}" data-act="diagM" data-v="${m}">Match ${m}${nb?' · '+nb+'/7':''}</button>`}).join('')}</div>
+   ${(m=>DIAG.map(([k,l,o])=>`<div style="margin:8px 0"><div class="small"><b>${esc(l)}</b></div><div class="rangee" style="flex-wrap:wrap;gap:6px;margin-top:4px">${o.map(([v,t])=>`<button type="button" class="bt mini${(dg[m]||{})[k]===v?' noir':''}" aria-pressed="${(dg[m]||{})[k]===v}" data-act="diag" data-k="${m}.${k}" data-v="${v}">${esc(t)}</button>`).join('')}</div></div>`).join(''))(S.diagM||1)}
+   <p class="small"><b>Impact</b> · A : balles au centre de la table · B : dans une grande zone · C : près des lignes et des bords.<br><b>Profil</b> · A : attend la faute adverse · B : met en difficulté · C : perturbe et conclut.</p>
+   ${Object.keys(sug).length?`<p><b>Suggestion pour l’étoile</b> : ${Object.entries(sug).map(([k,d])=>`${esc(COURT[k]||k)} → ${esc(GA.deg[d-1])}`).join(' · ')}. <span class="small muted">À confirmer en te situant toi-même ci-dessous.</span></p>`:''}
+  </details>`}
 function vEtoile(){
   const E=elv(),n=S.seance,r=rec(E.id,n),e=r.etoile||{},gr=r.grille||{c0:0,c1:0,c2:0,c3:0,cx:0,projet:''};
   const first=premiereEtoile(E.id),ref=first&&first.s!==n?first.e:null;
@@ -331,6 +352,7 @@ function vEtoile(){
     <p><b>Score observé : ${score}</b> <span class="small muted">(1 × les 1 + 2 × les 2 + 3 × les 3)</span></p>
     <label class="ch" for="projet">Je prévois de gagner en…</label><input id="projet" type="text" data-ch="projet" value="${esc(gr.projet)}" placeholder="ex. service sur le revers et smash dès que possible">
   </details>`;
+  h+=vDiag(r,n);
   h+=`<section class="carte"><h3>2 · Je me situe sur mon étoile</h3><p class="small muted">Touche la pastille qui te décrit sur chaque axe. On se situe avec les faits notés, pas avec l’impression.</p>
     <div class="radar">${radar(e,ref)}</div>
     ${ref?`<p class="small muted" style="text-align:center">Pointillés : ta 1re étoile (séance ${first.s}).</p>`:''}
@@ -443,6 +465,7 @@ function exportEleve(E,n){
     exercices:r.exos.filter(x=>x.ex).map(x=>{const i=exInfo(x.ex);return {axe:r.axes[x.slot],exercice:x.ex,theme:i?i.t.n:null,titre:i?i.e.t:'',niveau:x.niv||null,niveauLibelle:x.niv?GA.deg[x.niv-1]:'',critereAtteint:x.niv&&i?critereDe(i.e,x.niv):'',verifiePar:x.niv&&x.obs?x.obs:'',remarque:x.rq||''}}),
     bilan:r.rq||'',dispense:!!r.disp,groupe:S.eleves.map(e=>e.nom),
     etoile:r.etoile&&Object.keys(r.etoile).length?GA.axes.map(a=>({axe:a.k,nom:a.n,degre:r.etoile[a.k]||null,libelle:r.etoile[a.k]?GA.deg[r.etoile[a.k]-1]:''})):null,
+    diagnostic:r.diag&&Object.keys(r.diag).length?{matchs:r.diag,suggestionEtoile:diagSuggestion(r.diag)}:undefined,
     grilleCoach:r.grille?Object.assign({scoreObserve:r.grille.c1+2*r.grille.c2+3*r.grille.c3},r.grille):null,
     poule:pi>=0?Object.assign(TTL.resumePoule(P,pi),{brut:pouleBrute(P)}):null,
     arbitrePoule:arbitre?Object.assign(arbitre,{brut:pouleBrute(P)}):null,
@@ -689,6 +712,8 @@ document.addEventListener('click',async ev=>{
     case 'addex':{const r=rec(E.id,n);r.exos.push({slot:+b.dataset.slot,ex:null,niv:0,rq:''});break}
     case 'delex':{const r=rec(E.id,n);r.exos.splice(+b.dataset.i,1);break}
     case 'et':{const r=rec(E.id,n);r.etoile=r.etoile||{};r.etoile[b.dataset.k]=r.etoile[b.dataset.k]===+v?undefined:+v;if(r.etoile[b.dataset.k]==null)delete r.etoile[b.dataset.k];touche(r);break}
+    case 'diagM':{S.diagM=+v;break}
+    case 'diag':{const r=rec(E.id,n),[m,k]=b.dataset.k.split('.');r.diag=r.diag||{};r.diag[m]=r.diag[m]||{};if(r.diag[m][k]===v)delete r.diag[m][k];else r.diag[m][k]=v;touche(r);break}
     case 'cpt':{const r=rec(E.id,n);r.grille=r.grille||{c0:0,c1:0,c2:0,c3:0,cx:0,projet:''};r.grille[b.dataset.k]=Math.max(0,(r.grille[b.dataset.k]||0)+(+v));touche(r);break}
     case 'prendreAxes':{const r=rec(E.id,n),[k1,k2]=plusFaibles(r.etoile||{});
       if(r.axes[0]||r.axes[1]){if(r.axes[0]===k1&&r.axes[1]===k2){S.tab='seance';break}toast('Tu as déjà des axes : change-les dans l’onglet Séance.');return}
