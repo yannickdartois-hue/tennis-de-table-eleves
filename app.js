@@ -3,6 +3,8 @@
    Lycée Georges Pompidou · un téléphone pour 2 ou 3 élèves
    Données gardées sur le téléphone uniquement (localStorage).
    ===================================================================== */
+const AVT=(n,b,c)=>window.EPSAvatar?EPSAvatar(n,b,c):'',AVM=n=>window.EPSAvatar?EPSAvatar.mini(n):'';
+
 'use strict';
 /* Envoi en ligne : lien de dépôt du Nuage (« Demande de fichier – Téléversement seulement »).
    Réglé ici par le professeur uniquement ; il n'apparaît jamais à l'écran. Vide = envoi en ligne pas encore activé. */
@@ -181,7 +183,7 @@ function rendre(){
   $('#onglets').hidden=!g;
   const V={progres:()=>window.vProgres?vProgres():'',regles:vRegles,groupe:vGroupe,seance:vSeance,etoile:vEtoile,poule:vPoule,envoi:vEnvoi};
   const ne=nonEnvoyees();
-  $('#main').innerHTML=(ne.length&&S.tab!=='envoi'&&S.tab!=='groupe'?`<button type="button" class="nonenvoye" data-act="tab" data-v="envoi">⚠ Séance ${ne.join(', ')} non envoyée au professeur — touche ici pour l’envoyer</button>`:'')+(V[S.tab]||vSeance)();
+  $('#main').innerHTML=(ne.length&&S.tab!=='envoi'&&S.tab!=='groupe'?`<button type="button" class="nonenvoye eps-av-ligne" data-act="tab" data-v="envoi">${AVM('envoyer')}<span>⚠ Séance ${ne.join(', ')} non envoyée au professeur — touche ici pour l’envoyer</span></button>`:'')+(V[S.tab]||vSeance)();
 }
 
 /* ----- Groupe ----- */
@@ -272,7 +274,7 @@ function vSeance(){
   const E=elv(),n=S.seance,r=rec(E.id,n);
   let h=`<h2>Séance ${n} · ${esc(E.nom)}</h2>
   <label class="coche disp"><input type="checkbox" data-ch="disp" ${r.disp?'checked':''}> Aujourd’hui je suis dispensé(e)</label>
-  ${r.disp?'<p class="avert small">Dispensé(e) : tu travailles un rôle (coach, arbitrage) ou l’analyse, et tu arbitres en poule.</p>':'<p class="muted small">Tes 2 axes de travail, l’exercice choisi pour chacun, et le niveau atteint.</p>'}`;
+  ${r.disp?AVT('blesse','Dispensé(e) : tu travailles un rôle (coach, arbitrage) ou l’analyse, et tu arbitres en poule.'):'<p class="muted small">Tes 2 axes de travail, l’exercice choisi pour chacun, et le niveau atteint.</p>'}`;
   if(!r.axes[0]&&!r.axes[1]&&!derniereEtoile(E.id,n))h+=`<p class="avert">Commence par ton étoile (onglet Étoile) : elle te propose tes 2 axes les plus faibles.</p>`;
   [0,1].forEach(sl=>{
     const k=r.axes[sl],a=axe(k),q=valideQuand(E.id,k);
@@ -470,7 +472,7 @@ function vEnvoi(){
     return `<li class="${o?'':'manque'}"><span class="lettre">${LET[k]}</span><span><b>${esc(E.nom)}</b><small>${o?esc(resume(o))||'séance ouverte, rien de coché':'rien de saisi'}</small></span>${o?'<em>✓</em>':''}</li>`}).join('');
   const autres=F.filter(f=>f.o.type==='poule');
   const heure=t=>new Date(t).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-  return `<h2>Fin de séance ${n}</h2>
+  return `<h2>Fin de séance ${n}</h2>${(ev.qr||ev.fichier)&&F.length&&!nonEnvoyees().includes(n)?AVT('bravo','Séance envoyée. Bravo, à la prochaine !'):''}
   <section class="carte"><h3>Ma séance du jour</h3><ul class="envoi">${lignes}</ul>
     ${autres.length?`<p class="small muted">Résultats de poule envoyés aussi pour : ${autres.map(f=>esc(f.o.eleve)).join(', ')}.</p>`:''}
     ${S.eleves.some(E=>!exportEleve(E,n))?`<p class="avert small">Chaque élève choisit son prénom en haut de l’écran avant de saisir ses exercices.</p>`:''}</section>
@@ -778,4 +780,4 @@ rendre();
 /* Code du cours (eps-code.js, commun) : la saisie ne s’ouvre qu’en cours, avec le code à 4 chiffres du professeur (2 h). */
 if(window.EPSCode)EPSCode.eleve({app:'tte',classe:()=>S&&S.classe||'',seance:()=>S?String(S.seance):'',seances:()=>Array.from({length:NB_SEANCES},(_,i)=>String(i+1)),nom:s=>'Séance '+s,
   ouvrir:s=>{if(!S)return;S.seance=+s;S.jours=S.jours||{};S.jours[today()]=+s;S.tour=1;sauver();rendre()},
-  actif:()=>!!S&&['seance','etoile','poule'].includes(S.tab),libre:['qui','tour','video','tab','seance','fermer','fermerVoile','qrnav'],demo:()=>DEMO});
+  actif:()=>!!S&&['seance','etoile','poule'].includes(S.tab),libre:['qui','tour','video','tab','seance','fermer','fermerVoile','qrnav'],demo:()=>typeof DEMO!=='undefined'&&DEMO});
