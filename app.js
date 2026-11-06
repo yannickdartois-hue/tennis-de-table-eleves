@@ -318,33 +318,44 @@ function radar(e,ref){
     g+=`<rect x="${rx}" y="${y-hh/2}" width="${w}" height="${hh}" rx="6" fill="${fam[a.afl][0]}"/><text text-anchor="${anc}" font-family="Atkinson,Arial" font-weight="700" font-size="17" fill="${fam[a.afl][1]}">${L.map((l,j)=>`<tspan x="${tx}" y="${y-hh/2+19+j*20}">${l}</tspan>`).join('')}</text>`});
   return g+`</svg>`;
 }
-/* Observation diagnostique (fiche papier de Yannick, Seconde) : l'observateur coche pour 3 matchs */
-const DIAG=[
- ['serv','Service',[['1','Au centre, poussé'],['2','Au fond, côté varié'],['3','Au fond, frotté']]],
- ['smash','Smash sur balle facile',[['1','Ne smashe pas ou trop'],['2','Repère la balle, essaie'],['3','Smashe et réussit']]],
- ['traj','Variété des trajectoires',[['1','Renvoie sans intention'],['2','Alterne croisé / décroisé'],['3','Idem, frotté ou près des lignes']]],
- ['jeu','Type de jeu',[['1','Poussette'],['2','Poussette + coup droit'],['3','Coup droit + revers']]],
- ['effet','Effet',[['1','Non'],['3','Oui']]],
- ['impact','Impact des balles',[['1','A · au centre'],['2','B · grande zone'],['3','C · près des lignes']]],
- ['profil','Profil du joueur',[['1','A · attend la faute'],['2','B · met en difficulté'],['3','C · perturbe et conclut']]]];
-/* lien vers l'étoile : moyenne arrondie des 3 matchs, proposée (pas imposée) */
-const DIAG_ETOILE={strat:['profil'],cont:['jeu'],diff:['traj','impact','smash','serv']};
-function diagSuggestion(dg){const moy=ks=>{const v=[];[1,2,3].forEach(m=>ks.forEach(k=>{const x=+((dg[m]||{})[k]||0);if(x)v.push(x)}));return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):0};
-  const o={};Object.keys(DIAG_ETOILE).forEach(ax=>{const d=moy(DIAG_ETOILE[ax]);if(d)o[ax]=d});return o}
-function vDiag(r,n){const dg=r.diag||{},sug=diagSuggestion(dg);
-  return `<details class="carte"${n===1||S.diagM||(r.diag&&Object.keys(r.diag).length)?' open':''}><summary><h3 style="display:inline">1 bis · Observation diagnostique</h3></summary>
-   <p class="small muted">L’observateur regarde 3 matchs et coche, pour chaque match, ce qu’il voit le plus souvent.</p>
-   <div class="rangee" style="gap:6px;margin:6px 0">${[1,2,3].map(m=>{const nb=Object.keys(dg[m]||{}).length;return `<button type="button" class="bt mini${(S.diagM||1)===m?' noir':''}" data-act="diagM" data-v="${m}">Match ${m}${nb?' · '+nb+'/7':''}</button>`}).join('')}</div>
-   ${(m=>DIAG.map(([k,l,o])=>`<div style="margin:8px 0"><div class="small"><b>${esc(l)}</b></div><div class="rangee" style="flex-wrap:wrap;gap:6px;margin-top:4px">${o.map(([v,t])=>`<button type="button" class="bt mini${(dg[m]||{})[k]===v?' noir':''}" aria-pressed="${(dg[m]||{})[k]===v}" data-act="diag" data-k="${m}.${k}" data-v="${v}">${esc(t)}</button>`).join('')}</div></div>`).join(''))(S.diagM||1)}
-   <p class="small"><b>Impact</b> · A : balles au centre de la table · B : dans une grande zone · C : près des lignes et des bords.<br><b>Profil</b> · A : attend la faute adverse · B : met en difficulté · C : perturbe et conclut.</p>
-   ${Object.keys(sug).length?`<p><b>Suggestion pour l’étoile</b> : ${Object.entries(sug).map(([k,d])=>`${esc(COURT[k]||k)} → ${esc(GA.deg[d-1])}`).join(' · ')}. <span class="small muted">À confirmer en te situant toi-même ci-dessous.</span></p>`:''}
+/* Observation de match (L1) : le coach de chaque joueur touche UN bouton par échange.
+   Gagné : C au centre (balle sur le plot, ou faute adverse non provoquée) · P placée (hors du plot, non renvoyée) · S smash ou coup gagnant.
+   Perdu : F faute directe sans être gêné (filet, dehors, service raté) · D débordé (l'adversaire place ou smashe).
+   Les joueurs arbitrent eux-mêmes : le serveur annonce le score. */
+const OBS_G=[['C','Au centre','balle sur le plot ou faute adverse'],['P','Placée','loin du plot, non renvoyée'],['S','Smash','ou coup gagnant']];
+const OBS_P=[['F','Faute directe','filet, dehors, service raté, sans être gêné'],['D','Débordé','l’adversaire a placé ou smashé']];
+function obsStats(L){const n=L.length,c=k=>L.filter(x=>x===k).length,g=c('C')+c('P')+c('S'),p=c('F')+c('D');
+  return {n,g,p,C:c('C'),P:c('P'),S:c('S'),F:c('F'),D:c('D'),pctF:p+g?Math.round(100*c('F')/(g+p)):0,pctAtt:g?Math.round(100*(c('P')+c('S'))/g):0,score:c('P')+2*c('S')}}
+function obsTout(r){const o=r.obsm||{};return [].concat(o[1]||[],o[2]||[])}
+/* Degrés proposés (à confirmer par l'élève) : continuité d'après les fautes directes, mettre en difficulté d'après la part de points gagnés en plaçant ou en smashant */
+function obsSuggestion(st){if(st.n<10)return null;
+  const cont=st.pctF>40?1:st.pctF>25?2:st.pctF>10?3:4, diff=st.pctAtt<25?1:st.pctAtt<50?2:st.pctAtt<75?3:4;
+  const th=[];if(st.pctF>25)th.push(2,3);if(st.g&&st.C/st.g>0.5)th.push(4,5);if(st.P>=3&&st.S<=1)th.push(8);if(st.p&&st.D/st.p>0.5)th.push(3);
+  return {cont,diff,themes:[...new Set(th)].slice(0,3)}}
+function vObsMatch(r,n,E){const m=S.obsM||1,L=((r.obsm||{})[m])||[],tout=obsTout(r),st=obsStats(tout),sg=obsSuggestion(st),stm=obsStats(L);
+  const big='style="min-height:64px;flex:1 1 30%;display:flex;flex-direction:column;justify-content:center;line-height:1.15"';
+  return `<details class="carte"${n===1||tout.length||S.obsM?' open':''}><summary><h3 style="display:inline">1 · Observation de match</h3></summary>
+   <p class="small muted">Le coach de ${esc(E.nom)} se met au poteau du filet et touche <b>un bouton à la fin de chaque échange</b>. Les joueurs arbitrent : le serveur annonce le score.</p>
+   <div class="rangee" style="gap:6px;margin:6px 0">${[1,2].map(k=>{const nb=(((r.obsm||{})[k])||[]).length;return `<button type="button" class="bt mini${m===k?' noir':''}" data-act="obsM" data-v="${k}">Match ${k}${nb?' · '+nb+' éch.':''}</button>`}).join('')}</div>
+   <p style="margin:8px 0 4px"><b>${esc(E.nom)} gagne l’échange</b></p>
+   <div class="rangee" style="gap:6px">${OBS_G.map(([k,t,d])=>`<button type="button" class="bt" ${big} data-act="obs" data-v="${k}"><b>${t}</b><small>${d}</small><small>${stm[k]}</small></button>`).join('')}</div>
+   <p style="margin:10px 0 4px"><b>${esc(E.nom)} perd l’échange</b></p>
+   <div class="rangee" style="gap:6px">${OBS_P.map(([k,t,d])=>`<button type="button" class="bt" ${big} data-act="obs" data-v="${k}"><b>${t}</b><small>${d}</small><small>${stm[k]}</small></button>`).join('')}</div>
+   <div class="rangee" style="justify-content:space-between;margin-top:8px"><span class="small">Match ${m} : ${stm.g} gagnés · ${stm.p} perdus</span>${L.length?`<button type="button" class="bt mini" data-act="obsUndo">↶ Annuler le dernier</button>`:''}</div>
+   ${st.n?`<div class="carte" style="margin-top:10px;background:var(--sol)"><b>Ce que disent les ${st.n} échanges</b>
+     <ul class="small" style="margin:6px 0"><li>Fautes directes : <b>${st.pctF} %</b> des échanges ${st.pctF>25?'→ il perd surtout tout seul':'→ il tient l’échange'}</li>
+     <li>Points gagnés en plaçant ou en smashant : <b>${st.pctAtt} %</b> ${st.pctAtt<50?'→ il attend surtout la faute adverse':'→ il met en difficulté'}</li>
+     <li>Smashs gagnants : <b>${st.S}</b> · débordé : <b>${st.D}</b> · score observé : <b>${st.score}</b></li></ul>
+     ${sg?`<p class="small"><b>Proposition pour l’étoile</b> : Continuité → ${esc(GA.deg[sg.cont-1])} · Mettre en difficulté → ${esc(GA.deg[sg.diff-1])}${sg.themes.length?`<br><b>Thèmes à essayer en L2</b> : ${sg.themes.map(t=>`${t} « ${esc(theme(t).t)} »`).join(' ; ')}`:''}</p>
+       <button type="button" class="bt mini" data-act="obsEtoile">Placer ces 2 axes sur mon étoile</button>`:`<p class="small muted">Encore ${10-st.n} échanges pour une proposition fiable.</p>`}</div>`:''}
   </details>`}
 function vEtoile(){
   const E=elv(),n=S.seance,r=rec(E.id,n),e=r.etoile||{},gr=r.grille||{c0:0,c1:0,c2:0,c3:0,cx:0,projet:''};
   const first=premiereEtoile(E.id),ref=first&&first.s!==n?first.e:null;
   const score=gr.c1+2*gr.c2+3*gr.c3;
   let h=`<h2>Mon étoile · ${esc(E.nom)}</h2><p class="muted small">Séance ${n}. À faire en début de cycle, puis à refaire en fin de cycle pour voir tes progrès.</p>`;
-  h+=`<details class="carte"${r.grille||n===1?' open':''}><summary><h3 style="display:inline">1 · Grille du coach</h3></summary>
+  h+=vObsMatch(r,n,E);
+  h+=`<details class="carte"${r.grille?' open':''}><summary><h3 style="display:inline">Grille 0-1-2-3 (comptage détaillé, plus tard dans le cycle)</h3></summary>
     <p class="small muted">Pendant le match, le coach compte comment son joueur gagne ses points.</p>
     <div class="compteurs">${GA.obs.map(([c,l])=>{const k='c'+c;return `<div title="${esc(l)}"><span class="code">${c}</span><b>${gr[k]||0}</b><button type="button" data-act="cpt" data-k="${k}" data-v="1" aria-label="ajouter un ${c}">+</button><button type="button" data-act="cpt" data-k="${k}" data-v="-1" aria-label="enlever un ${c}">−</button></div>`}).join('')}</div>
     <ul class="small">${GA.obs.map(([c,l])=>`<li><b>${c}</b> : ${esc(l)}</li>`).join('')}</ul>
@@ -352,8 +363,7 @@ function vEtoile(){
     <p><b>Score observé : ${score}</b> <span class="small muted">(1 × les 1 + 2 × les 2 + 3 × les 3)</span></p>
     <label class="ch" for="projet">Je prévois de gagner en…</label><input id="projet" type="text" data-ch="projet" value="${esc(gr.projet)}" placeholder="ex. service sur le revers et smash dès que possible">
   </details>`;
-  h+=vDiag(r,n);
-  h+=`<section class="carte"><h3>2 · Je me situe sur mon étoile</h3><p class="small muted">Touche la pastille qui te décrit sur chaque axe. On se situe avec les faits notés, pas avec l’impression.</p>
+  h+=`<section class="carte"><h3>2 · Je me situe sur mon étoile</h3><p class="small muted">Touche la pastille qui te décrit sur chaque axe. On se situe avec les faits notés, pas avec l’impression.${n===1?' <b>En L1, seulement les 3 axes de jeu</b> (Stratégie, Continuité, Mettre en difficulté) : les 4 autres se remplissent en L2-L3, quand on a vu ton engagement, ton analyse, ton coaching et ton arbitrage.':''}</p>
     <div class="radar">${radar(e,ref)}</div>
     ${ref?`<p class="small muted" style="text-align:center">Pointillés : ta 1re étoile (séance ${first.s}).</p>`:''}
     <div class="grille-etoile">${GA.axes.map(a=>`<div class="ax-row carte axe ${famCl(a)}" style="margin:0"><b>${esc(a.n)}</b> <span class="fam ${famCl(a)}">${ICOFAM[a.afl]||''}${a.afl}</span>
@@ -465,7 +475,7 @@ function exportEleve(E,n){
     exercices:r.exos.filter(x=>x.ex).map(x=>{const i=exInfo(x.ex);return {axe:r.axes[x.slot],exercice:x.ex,theme:i?i.t.n:null,titre:i?i.e.t:'',niveau:x.niv||null,niveauLibelle:x.niv?GA.deg[x.niv-1]:'',critereAtteint:x.niv&&i?critereDe(i.e,x.niv):'',verifiePar:x.niv&&x.obs?x.obs:'',remarque:x.rq||''}}),
     bilan:r.rq||'',dispense:!!r.disp,groupe:S.eleves.map(e=>e.nom),
     etoile:r.etoile&&Object.keys(r.etoile).length?GA.axes.map(a=>({axe:a.k,nom:a.n,degre:r.etoile[a.k]||null,libelle:r.etoile[a.k]?GA.deg[r.etoile[a.k]-1]:''})):null,
-    diagnostic:r.diag&&Object.keys(r.diag).length?{matchs:r.diag,suggestionEtoile:diagSuggestion(r.diag)}:undefined,
+    observationMatch:obsTout(r).length?{matchs:r.obsm,synthese:obsStats(obsTout(r)),proposition:obsSuggestion(obsStats(obsTout(r)))}:undefined,
     grilleCoach:r.grille?Object.assign({scoreObserve:r.grille.c1+2*r.grille.c2+3*r.grille.c3},r.grille):null,
     poule:pi>=0?Object.assign(TTL.resumePoule(P,pi),{brut:pouleBrute(P)}):null,
     arbitrePoule:arbitre?Object.assign(arbitre,{brut:pouleBrute(P)}):null,
@@ -712,8 +722,10 @@ document.addEventListener('click',async ev=>{
     case 'addex':{const r=rec(E.id,n);r.exos.push({slot:+b.dataset.slot,ex:null,niv:0,rq:''});break}
     case 'delex':{const r=rec(E.id,n);r.exos.splice(+b.dataset.i,1);break}
     case 'et':{const r=rec(E.id,n);r.etoile=r.etoile||{};r.etoile[b.dataset.k]=r.etoile[b.dataset.k]===+v?undefined:+v;if(r.etoile[b.dataset.k]==null)delete r.etoile[b.dataset.k];touche(r);break}
-    case 'diagM':{S.diagM=+v;break}
-    case 'diag':{const r=rec(E.id,n),[m,k]=b.dataset.k.split('.');r.diag=r.diag||{};r.diag[m]=r.diag[m]||{};if(r.diag[m][k]===v)delete r.diag[m][k];else r.diag[m][k]=v;touche(r);break}
+    case 'obsM':{S.obsM=+v;break}
+    case 'obs':{const r=rec(E.id,n),m=S.obsM||1;r.obsm=r.obsm||{};(r.obsm[m]=r.obsm[m]||[]).push(v);touche(r);if(navigator.vibrate)try{navigator.vibrate(15)}catch(e){};break}
+    case 'obsUndo':{const r=rec(E.id,n),m=S.obsM||1;if(r.obsm&&r.obsm[m])r.obsm[m].pop();touche(r);break}
+    case 'obsEtoile':{const r=rec(E.id,n),sg=obsSuggestion(obsStats(obsTout(r)));if(!sg)return;r.etoile=r.etoile||{};r.etoile.cont=sg.cont;r.etoile.diff=sg.diff;touche(r);toast('Continuité et Mettre en difficulté placés : situe-toi maintenant sur Stratégie.');break}
     case 'cpt':{const r=rec(E.id,n);r.grille=r.grille||{c0:0,c1:0,c2:0,c3:0,cx:0,projet:''};r.grille[b.dataset.k]=Math.max(0,(r.grille[b.dataset.k]||0)+(+v));touche(r);break}
     case 'prendreAxes':{const r=rec(E.id,n),[k1,k2]=plusFaibles(r.etoile||{});
       if(r.axes[0]||r.axes[1]){if(r.axes[0]===k1&&r.axes[1]===k2){S.tab='seance';break}toast('Tu as déjà des axes : change-les dans l’onglet Séance.');return}
