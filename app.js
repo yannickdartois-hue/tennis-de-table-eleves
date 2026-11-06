@@ -296,6 +296,9 @@ function vSeance(){
     }
     h+=`</section>`;
   });
+  if(n>=8&&!r.disp)h+=`<section class="carte"><h3>⏱ Ma gestion des 15 minutes</h3><p class="small muted">Évaluation finale : comment je m’échauffe avant mes matchs.</p>
+    <label class="ch" for="g15duo">Duo (échange long, routines)</label><textarea id="g15duo" data-ch="g15" data-k="duo" rows="2" placeholder="ex. 5 min de coup droit et revers en diagonale, puis services">${esc((r.g15||{}).duo||'')}</textarea>
+    <label class="ch" for="g15duel">Duel (je me mets en situation de match)</label><textarea id="g15duel" data-ch="g15" data-k="duel" rows="2" placeholder="ex. 2 matchs en 5 points avec mon projet">${esc((r.g15||{}).duel||'')}</textarea></section>`;
   h+=`<section class="carte"><label class="ch" for="bilan">Bilan : ce que j’ai appris, ce que je travaille la prochaine fois</label><textarea id="bilan" data-ch="bilan">${esc(r.rq)}</textarea></section>`;
   return h;
 }
@@ -473,7 +476,7 @@ function exportEleve(E,n){
     axes:r.axes.filter(Boolean).map(k=>{const a=axe(k);return {axe:k,nom:a.n,afl:a.afl,valideAujourdhui:!!r.val[k],valideDepuisSeance:valideQuand(E.id,k)}}),
     changementsAxe:r.chg.map(c=>({de:c.de,vers:c.vers,motif:c.motif,quand:c.ts})),
     exercices:r.exos.filter(x=>x.ex).map(x=>{const i=exInfo(x.ex);return {axe:r.axes[x.slot],exercice:x.ex,theme:i?i.t.n:null,titre:i?i.e.t:'',niveau:x.niv||null,niveauLibelle:x.niv?GA.deg[x.niv-1]:'',critereAtteint:x.niv&&i?critereDe(i.e,x.niv):'',verifiePar:x.niv&&x.obs?x.obs:'',remarque:x.rq||''}}),
-    bilan:r.rq||'',dispense:!!r.disp,groupe:S.eleves.map(e=>e.nom),
+    bilan:r.rq||'',gestion15:r.g15&&(r.g15.duo||r.g15.duel)?{duo:r.g15.duo||'',duel:r.g15.duel||''}:null,dispense:!!r.disp,groupe:S.eleves.map(e=>e.nom),
     etoile:r.etoile&&Object.keys(r.etoile).length?GA.axes.map(a=>({axe:a.k,nom:a.n,degre:r.etoile[a.k]||null,libelle:r.etoile[a.k]?GA.deg[r.etoile[a.k]-1]:''})):null,
     observationMatch:obsTout(r).length?{matchs:r.obsm,synthese:obsStats(obsTout(r)),proposition:obsSuggestion(obsStats(obsTout(r)))}:undefined,
     grilleCoach:r.grille?Object.assign({scoreObserve:r.grille.c1+2*r.grille.c2+3*r.grille.c3},r.grille):null,
@@ -808,6 +811,7 @@ document.addEventListener('input',ev=>{
   const r=rec(E.id,n);
   if(c==='exrq')r.exos[+t.dataset.i].rq=t.value;
   else if(c==='bilan')r.rq=t.value;
+  else if(c==='g15'){r.g15=r.g15||{};r.g15[t.dataset.k]=t.value}
   else if(c==='projet'){r.grille=r.grille||{c0:0,c1:0,c2:0,c3:0,cx:0,projet:''};r.grille.projet=t.value}
   else return;
   touche(r);sauver();

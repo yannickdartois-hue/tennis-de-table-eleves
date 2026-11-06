@@ -19,7 +19,8 @@ window.EPS_AIDE={appli:'Tennis de table · Élève',bouton:false,publics:[
 <li>Choisis <b>2 axes de travail</b>, puis un exercice du catalogue (filtré par axe). Touche l’image pour voir la vidéo (internet nécessaire).</li>
 <li>Coche le <b>niveau atteint</b> : il compte quand un camarade ou le professeur le <b>vérifie</b> (observateur).</li>
 <li>Sous chaque niveau : le <b>prochain pas</b> (critère suivant, exercice suivant ou match à thème).</li>
-<li>Dispensé aujourd’hui : coche la case ; tu travailles l’analyse, le coaching ou l’arbitrage.</li></ul>`},
+<li>Dispensé aujourd’hui : coche la case ; tu travailles l’analyse, le coaching ou l’arbitrage.</li>
+<li>Séances 8 et 9 : carte <b>Ma gestion des 15 minutes</b> (échauffement en duo, puis en duel), lue par le professeur.</li></ul>`},
 {t:'La poule et le tableau de marque',html:`<ul><li>Onglet <b>Poule</b> : 2 à 6 joueurs, tous contre tous, un arbitre. Le professeur peut donner un QR de poule : <span class="bouton">Scanner le QR de la poule</span> remplit tout.</li>
 <li>Bouton 🏓 d’un match : <b>tableau de marque</b> plein écran, on touche le côté du joueur qui marque. Le service est indiqué, la manche s’enregistre seule.</li>
 <li>Avant le match, chaque joueur annonce son <b>projet de jeu</b> ; après, l’arbitre dit s’il est réalisé.</li>
