@@ -96,9 +96,9 @@ async function nouveauGroupe(classe,code){
   const C=classe&&ROOT.classes[classe];if(C){S.cfg=JSON.parse(JSON.stringify(C));S.classe=classe}
   S.tab='groupe';await enregistrer();
 }
-// Verrouillage automatique : tablette mise en veille ou 10 min sans toucher l'écran.
+// Verrouillage automatique : tablette mise en veille ou 20 min sans toucher l'écran.
 let tInactif=null;
-function reveil(){clearTimeout(tInactif);if(S)tInactif=setTimeout(async()=>{if(S){await verrouiller();fermer();rendre();toast('Carnet verrouillé (10 min sans activité).')}},10*60*1000)}
+function reveil(){clearTimeout(tInactif);if(S)tInactif=setTimeout(async()=>{if(S){await verrouiller();fermer();rendre();toast('Carnet verrouillé (20 min sans activité).')}},20*60*1000)}
 ['click','input','touchstart'].forEach(e=>document.addEventListener(e,reveil,{passive:true}));
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)enregistrer()});
 /* Saisie du code secret */
@@ -718,7 +718,7 @@ document.addEventListener('click',async ev=>{
       const ancien={};S.eleves.forEach(e=>ancien[e.id]=e.nom);
       L.forEach(e=>{const o=ancien[e.id];if(o&&o!==e.nom)Object.values(S.poules).forEach(P=>{const i=P.joueurs.indexOf(o);if(i>=0)P.joueurs[i]=e.nom})});
       S.classe=cl;S.eleves=L;S.cur=0;S.tab='seance';toast('Groupe enregistré.');break}
-    case 'sauvegarde':telecharger('Carnet_TT_'+(TTL.slug(S.classe)||'groupe')+'_'+today()+'.json',JSON.stringify(Object.assign({carnetTT:1},S)));return;
+    case 'sauvegarde':await enregistrer();telecharger('Carnet_TT_'+(TTL.slug(S.classe)||'groupe')+'_'+today()+'.json',JSON.stringify((()=>{const g=Object.assign({},ROOT.groupes[ACTIF]);delete g.essais;delete g.clair;return Object.assign({carnetTTc:1,id:ACTIF},g)})()));return;
     case 'toutEffacer':if(!confirm('Supprimer ce groupe et toutes ses séances de la tablette ? Envoie d’abord tes fichiers.'))return;delete ROOT.groupes[ACTIF];S=null;ACTIF=null;CLEF=null;ecrireRoot();rendre();return;
     case 'niv':{const r=rec(E.id,n),x=r.exos[+b.dataset.i];x.niv=x.niv===+v?0:+v;x.obs=null;touche(r);break}
     case 'verif':{const r=rec(E.id,n),x=r.exos[+b.dataset.i];x.obs=x.obs===v?null:v;touche(r);break}
@@ -778,7 +778,9 @@ document.addEventListener('change',async ev=>{
   const t=ev.target;
   if(window.EPLUS&&EPLUS.change&&await EPLUS.change(t,ev))return;
   if(t.id==='reprise'&&t.files[0]){
-    try{const o=JSON.parse(await t.files[0].text());if(!o.carnetTT||!o.v)throw 0;
+    try{const o=JSON.parse(await t.files[0].text());
+      if(o.carnetTTc&&o.data&&o.iv&&o.sel){const {carnetTTc:_m,id:_i,...g}=o;const id=_i||uid(),x=ROOT.groupes[id];t.value='';if(x&&x.data&&(x.vu||0)>=(g.vu||0)){toast('Cette tablette a déjà ce carnet, aussi récent ou plus récent : rien n’a été remplacé.');return}await verrouiller();delete g.essais;ROOT.groupes[id]=g;ecrireRoot();rendre();toast('Carnet repris : touchez-le et tapez votre code secret habituel.');return}
+      if(!o.carnetTT||!o.v)throw 0;
       delete o.carnetTT;if(o.cfg)ROOT.classes[o.cfg.classe]=o.cfg;
       await verrouiller();const id=uid();ROOT.groupes[id]={classe:o.classe||'',noms:(o.eleves||[]).map(e=>e.nom.split(/\s+/)[0]),clair:o};ecrireRoot();rendre();toast('Carnet repris : choisissez-le et donnez-lui un code.')}
     catch(e){toast('Ce fichier n’est pas un carnet de groupe.')}
