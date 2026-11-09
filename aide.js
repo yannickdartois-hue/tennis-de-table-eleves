@@ -29,7 +29,7 @@ window.EPS_AIDE={appli:'Tennis de table · Élève',bouton:false,publics:[
 <li>Un bandeau rouge « Séance non envoyée » reste tant que ce n’est pas fait.</li></ol>`},
 {t:'Changer de groupe, code oublié',html:`<ul><li><b>Un élève change de groupe</b> : Groupe → « … part » affiche son QR ; le nouveau groupe le scanne. Son historique le suit.</li>
 <li><b>Code oublié</b> : le carnet ne s’ouvre plus. Le professeur te donne un <b>QR de reprise</b> qui te rend ton étoile, tes axes et tes poules.</li>
-<li>Le carnet se verrouille après 20 min sans activité.</li>
+<li>Le carnet se verrouille après 20 min sans activité sur une tablette partagée, après 2 h sur un téléphone avec un seul carnet.</li>
 <li><b>Lecture facilitée</b> (case en haut de ce mode d’emploi) : la même police partout, lettres et lignes plus espacées. Utile en cas de dyslexie ; vaut pour toutes les applis EPS de la tablette.</li></ul>`}]},
 {id:'prof',titre:'Professeur',chapitres:[
 {t:'Mettre en place',html:`<ol><li>Outil prof → <b>Classes</b> : import Pronote, lien de dépôt du Nuage (« Demande de fichier »).</li>
