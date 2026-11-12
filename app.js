@@ -177,7 +177,7 @@ function rendre(){
   // qui saisit
   const G6=!!(window.G26V&&G26V.actif());
   if(G6&&['seance','etoile','progres'].includes(S.tab))S.tab='sce'; // parcours GAREEPS 2026 : pas d'étoile ni de séance « axes »
-  if(!G6&&['sce','srp','stom'].includes(S.tab))S.tab='seance';
+  if(!G6&&['sce','srp','stom','atp'].includes(S.tab))S.tab='seance';
   const parEleve=(['seance','etoile','poule','progres'].includes(S.tab)||(G6&&G26V.parEleve.includes(S.tab)))&&S.eleves.length>1;
   $('#qui').hidden=!parEleve;
   $('#qui').innerHTML=parEleve?S.eleves.map((e,i)=>`<button type="button" data-act="qui" data-v="${i}" class="${S.cur===i?'ici':''}">${esc(e.nom.split(/\s+/)[0]||e.nom)}</button>`).join(''):'';
@@ -186,6 +186,7 @@ function rendre(){
   const ne2=nonEnvoyees().length;
   $('#onglets').innerHTML=O.map(o=>`<button type="button" data-act="tab" data-v="${o[0]}" class="${S.tab===o[0]?'ici':''}${o[0]==='envoi'&&ne2?' alerte':''}"><i aria-hidden="true">${o[1]}</i><b>${o[2]}</b></button>`).join('');
   $('#onglets').hidden=!g;
+  $('#onglets').classList.toggle('g7',O.length===7);
   const V=Object.assign({progres:()=>window.vProgres?vProgres():'',regles:vRegles,groupe:vGroupe,seance:vSeance,etoile:vEtoile,poule:vPoule,envoi:vEnvoi},G6?G26V.vues():{});
   const ne=nonEnvoyees();
   $('#main').innerHTML=(ne.length&&S.tab!=='envoi'&&S.tab!=='groupe'?`<button type="button" class="nonenvoye eps-av-ligne" data-act="tab" data-v="envoi">${AVM('envoyer')}<span>⚠ Séance ${ne.join(', ')} non envoyée au professeur — touche ici pour l’envoyer</span></button>`:'')+(V[S.tab]||vSeance)();
@@ -548,7 +549,7 @@ async function montrerTransfert(i){
 function recevoirClasse(o){
   if(o.t!=='C')throw new Error('Ce n’est pas le QR de la classe.');
   const cfg={classe:o.c,eleves:o.l||[],lien:o.u||'',k:o.k||''};
-  if(o.pa){cfg.pa=o.pa;if(o.pal)cfg.pal=o.pal;if(o.h)cfg.h=o.h} // parcours de la classe (GAREEPS 2026 : paliers, polygones et choix déjà reçus)
+  if(o.pa){cfg.pa=o.pa;if(o.pal)cfg.pal=o.pal;if(o.h)cfg.h=o.h;if(o.gr)cfg.gr=o.gr;if(o.atp)cfg.atp=o.atp} // parcours de la classe (GAREEPS 2026 : paliers, polygones et choix déjà reçus)
   if(window.EPSCode)EPSCode.memoriserCle(o.c,o.cc);
   if(window.EPSCode&&EPSCode.appliquerJour&&o.cj)EPSCode.appliquerJour(o.c,o.cj); // QR du jour : ouvre la séance sans taper le code
   ROOT.classes[o.c]=cfg;
@@ -655,7 +656,7 @@ function qrSvg(txt){
 async function montrerQR(i){
   if(!QRS){const n=S.seance;const F=fichiers(n);
     // un QR par élève du groupe ; la poule (autres joueurs) part dans un seul QR
-    const el=F.filter(f=>f.o.type!=='poule'&&f.o.type!=='sce');QRS=[];
+    const el=F.filter(f=>f.o.type!=='poule'&&f.o.type!=='sce'&&f.o.type!=='atp');QRS=[];
     for(const f of el){const k=S.eleves.findIndex(E=>E.nom===f.o.eleve);QRS.push({titre:(k>=0?'ABC'[k]+' · ':'')+f.o.eleve,txt:await TTL.chaineQR(f.o)})}
     for(const [t,P] of toursDe(n)){
       const q={a:'TTE',v:1,t:'P',c:S.classe,s:+cleTour(n,t),d:today(),ts:Math.round(Date.now()/1000),p:[P.num,P.fmt,P.joueurs,P.arbDisp||'',P.matchs.map(m=>[m.a,m.b,m.arb,m.f||'',(m.m||[]).filter(x=>x&&x[0]!==''&&x[1]!=='').map(x=>[+x[0],+x[1]]),m.pj||0,m.pjok||0,m.codes?[m.codes.a,m.codes.b]:0])]};
@@ -834,4 +835,4 @@ rendre();
 /* Code du cours (eps-code.js, commun) : la saisie ne s’ouvre qu’en cours, avec le code à 4 chiffres du professeur (2 h). */
 if(window.EPSCode)EPSCode.eleve({app:'tte',classe:()=>S&&S.classe||'',seance:()=>S?String(S.seance):'',seances:()=>Array.from({length:NB_SEANCES},(_,i)=>String(i+1)),nom:s=>'Séance '+s,
   ouvrir:s=>{if(!S)return;S.seance=+s;S.jours=S.jours||{};S.jours[today()]=+s;S.tour=1;sauver();rendre()},
-  actif:()=>!!S&&['seance','etoile','poule','sce','srp','stom'].includes(S.tab),libre:['qui','tour','video','tab','seance','fermer','fermerVoile','qrnav'],demo:()=>typeof DEMO!=='undefined'&&DEMO});
+  actif:()=>!!S&&['seance','etoile','poule','sce','srp','stom','atp'].includes(S.tab),libre:['qui','tour','video','tab','seance','fermer','fermerVoile','qrnav'],demo:()=>typeof DEMO!=='undefined'&&DEMO});

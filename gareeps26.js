@@ -57,6 +57,7 @@ const css=`
 .g6pj{font-size:14px;color:#c9d1d9;margin:6px 0 0}
 .g6big{display:flex;align-items:center;background:#1b2533;border-radius:16px;padding:10px;margin:8px 0}.g6big>div{flex:1;text-align:center}
 .g6big small{display:block;color:#9AA5B3;font-size:14px}.g6big b{display:block;font:900 54px/1.05 var(--d);color:#FDBA74}.g6big b.m{font-size:34px;color:#fff}
+nav.onglets.g7{grid-template-columns:repeat(7,1fr)}nav.onglets.g7 button b{font-size:15px}
 .g6deg{display:flex;gap:3px;margin-top:10px}.g6deg i{flex:1;font:700 13px var(--d);font-style:normal;text-align:center;padding:6px 0;border-radius:6px;background:#2a3647;color:#9AA5B3}.g6deg i.on{background:var(--ligne);color:#fff}
 @media print{#g6m{display:none}}
 `;
@@ -336,14 +337,14 @@ function tableBrute(t,n){
     totaux:t.J.map((j,p)=>{const x=totaux(t,p);return {joueur:j,R:x.v[0],A:x.v[1],K:x.v[2],T:x.v[3],victoires:x.vic,choix:(t.bil&&t.bil[p])||[]}}),
     saisiPar:S.eleves.map(e=>e.nom).join(', ')};
 }
-function fichiers(n){const t=tables()[n];if(!t||!t.m.some(m=>(m.b||[]).length))return [];
-  return [{nom:TTL.nomFichier(S.classe,'Table'+t.tab,n,'sce'+t.sce),o:tableBrute(t,n)}]}
-async function qrs(n){const t=tables()[n];if(!t||!t.m.some(m=>(m.b||[]).length))return [];
+function fichiers(n){const t=tables()[n],atp=window.ATP26?ATP26.fichiers(n):[];if(!t||!t.m.some(m=>(m.b||[]).length))return atp;
+  return atp.concat([{nom:TTL.nomFichier(S.classe,'Table'+t.tab,n,'sce'+t.sce),o:tableBrute(t,n)}])}
+async function qrs(n){const t=tables()[n],atp=window.ATP26?await ATP26.qrs(n):[];if(!t||!t.m.some(m=>(m.b||[]).length))return atp;
   const cut=(s,k)=>String(s||'').slice(0,k);
   const q={a:'TTE',v:1,t:'S',c:S.classe,s:n,d:today(),ts:Math.round(Date.now()/1000),n:t.sce,tb:t.tab,j:t.J,
     m:t.m.map(m=>[m.srv||'',(m.b||[]).map(x=>x[0]+(x[1]||'-')).join(''),m.dec||'',m.av?['a','b'].map(c=>m.av[c]?[cut(m.av[c].pj,90),Object.values(m.av[c].f||{}).flat().slice(0,6),(m.av[c].fo||[]).slice(0,4)]:0):0]),
     bl:t.bil||{}};
-  return [{titre:'SCE '+t.sce+' · table '+t.tab+' (les 4 joueurs)',txt:await chaineBrute(q)}];
+  return atp.concat([{titre:'SCE '+t.sce+' · table '+t.tab+' (les 4 joueurs)',txt:await chaineBrute(q)}]);
 }
 
 /* =================== Actions =================== */
@@ -428,8 +429,8 @@ document.addEventListener('input',ev=>{
 /* =================== Branchement dans l'appli =================== */
 window.G26V={
   actif:PA,
-  onglets:()=>[['sce','🧪','SCE'],['srp','🏓','SRP'],['stom','🛠️','STOM'],['poule','🏆','Poule'],['regles','📖','Règles'],['envoi','📤','Envoyer']],
-  vues:()=>({sce:vSCE,srp:vSRP,stom:vSTOM}),
+  onglets:()=>[['sce','🧪','SCE'],['srp','🏓','SRP'],['stom','🛠️','STOM'],['atp','🥇','ATP'],['poule','🏆','Poule'],['regles','📖','Règles'],['envoi','📤','Envoyer']],
+  vues:()=>({sce:vSCE,srp:vSRP,stom:vSTOM,atp:()=>window.ATP26?ATP26.vue():''}),
   parEleve:['srp','stom'],
   export:exportEleve,fichiers,qrs,
   polygone,totaux
