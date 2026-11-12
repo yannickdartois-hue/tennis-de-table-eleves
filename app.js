@@ -175,15 +175,18 @@ function rendre(){
   $('#seances').innerHTML=g?`<span class="lab">Séance</span><div class="strip">${[...Array(NB_SEANCES)].map((_,i)=>`<button type="button" data-act="seance" data-v="${i+1}" class="${S.seance===i+1?'ici':''} ${faites.has(i+1)?'fait':''}" aria-label="Séance ${i+1}">${i+1}</button>`).join('')}</div>`:'';
   $('#seances').hidden=!g;
   // qui saisit
-  const parEleve=['seance','etoile','poule','progres'].includes(S.tab)&&S.eleves.length>1;
+  const G6=!!(window.G26V&&G26V.actif());
+  if(G6&&['seance','etoile','progres'].includes(S.tab))S.tab='sce'; // parcours GAREEPS 2026 : pas d'étoile ni de séance « axes »
+  if(!G6&&['sce','srp','stom'].includes(S.tab))S.tab='seance';
+  const parEleve=(['seance','etoile','poule','progres'].includes(S.tab)||(G6&&G26V.parEleve.includes(S.tab)))&&S.eleves.length>1;
   $('#qui').hidden=!parEleve;
   $('#qui').innerHTML=parEleve?S.eleves.map((e,i)=>`<button type="button" data-act="qui" data-v="${i}" class="${S.cur===i?'ici':''}">${esc(e.nom.split(/\s+/)[0]||e.nom)}</button>`).join(''):'';
   // onglets
-  const O=[['seance','🏓','Séance'],['etoile','⭐','Étoile'],['poule','🏆','Poule'],['progres','📈','Progrès'],['regles','📖','Règles'],['envoi','📤','Envoyer']];
+  const O=G6?G26V.onglets():[['seance','🏓','Séance'],['etoile','⭐','Étoile'],['poule','🏆','Poule'],['progres','📈','Progrès'],['regles','📖','Règles'],['envoi','📤','Envoyer']];
   const ne2=nonEnvoyees().length;
   $('#onglets').innerHTML=O.map(o=>`<button type="button" data-act="tab" data-v="${o[0]}" class="${S.tab===o[0]?'ici':''}${o[0]==='envoi'&&ne2?' alerte':''}"><i aria-hidden="true">${o[1]}</i><b>${o[2]}</b></button>`).join('');
   $('#onglets').hidden=!g;
-  const V={progres:()=>window.vProgres?vProgres():'',regles:vRegles,groupe:vGroupe,seance:vSeance,etoile:vEtoile,poule:vPoule,envoi:vEnvoi};
+  const V=Object.assign({progres:()=>window.vProgres?vProgres():'',regles:vRegles,groupe:vGroupe,seance:vSeance,etoile:vEtoile,poule:vPoule,envoi:vEnvoi},G6?G26V.vues():{});
   const ne=nonEnvoyees();
   $('#main').innerHTML=(ne.length&&S.tab!=='envoi'&&S.tab!=='groupe'?`<button type="button" class="nonenvoye eps-av-ligne" data-act="tab" data-v="envoi">${AVM('envoyer')}<span>⚠ Séance ${ne.join(', ')} non envoyée au professeur — touche ici pour l’envoyer</span></button>`:'')+(V[S.tab]||vSeance)();
 }
@@ -473,6 +476,7 @@ function exportEleve(E,n){
     if(i>=0)return Object.assign({tour:t},TTL.resumePoule(Q,i),{brut:pouleBrute(Q)});
     if(Q.arbDisp===E.nom)return {tour:t,arbitre:true,numero:Q.num,brut:pouleBrute(Q)};
     return null}).filter(Boolean);
+  if(r&&!r.date&&!r.imp&&r.g26&&!(window.G26V&&G26V.export(E,n)))r=null; // parcours GAREEPS 2026 ouvert sans rien saisi
   if(!r){if(pi<0&&!arbitre&&!tours.length)return null;r={date:today(),axes:[],chg:[],exos:[],val:{},rq:'',etoile:null,grille:null}} // dans la poule mais rien d'autre saisi
   return {app:'tennis-de-table-eleves',version:VERSION,activite:'Tennis de table',classe:S.classe,eleve:E.nom,seance:n,date:r.date||today(),exportedAt:new Date().toISOString(),
     axes:r.axes.filter(Boolean).map(k=>{const a=axe(k);return {axe:k,nom:a.n,afl:a.afl,valideAujourdhui:!!r.val[k],valideDepuisSeance:valideQuand(E.id,k)}}),
@@ -484,7 +488,8 @@ function exportEleve(E,n){
     grilleCoach:r.grille?Object.assign({scoreObserve:r.grille.c1+2*r.grille.c2+3*r.grille.c3},r.grille):null,
     poule:pi>=0?Object.assign(TTL.resumePoule(P,pi),{brut:pouleBrute(P)}):null,
     arbitrePoule:arbitre?Object.assign(arbitre,{brut:pouleBrute(P)}):null,
-    tours:tours.length?tours:undefined};
+    tours:tours.length?tours:undefined,
+    g26:window.G26V?(G26V.export(E,n)||undefined):undefined};
 }
 // La poule complète (tous les matchs, manche par manche) : l'outil prof reconstruit le tableau et le classement.
 function pouleBrute(P){return {num:P.num,fmt:P.fmt,arbDisp:P.arbDisp||'',joueurs:P.joueurs.slice(),matchs:P.matchs.map(m=>({a:m.a,b:m.b,arb:m.arb,f:m.f||null,pj:m.pj||null,pjok:m.pjok||null,co:m.codes||null,m:(m.m||[]).filter(x=>x&&x[0]!==''&&x[1]!==''&&x[0]!=null&&x[1]!=null).map(x=>[+x[0],+x[1]])}))}}
@@ -495,6 +500,7 @@ function fichiers(n){
   const mine=new Set(S.eleves.map(e=>e.nom)),autres={};
   toursDe(n).forEach(([t,P])=>P.joueurs.forEach((j,i)=>{if(mine.has(j))return;const o=autres[j]||(autres[j]={tours:[]});
     const res=Object.assign(TTL.resumePoule(P,i),{brut:pouleBrute(P)});if(t===1)o.poule=res;else o.tours.push(Object.assign({tour:t},res))}));
+  if(window.G26V)G26V.fichiers(n).forEach(f=>L.push(f)); // table de SCE (les 4 joueurs)
   Object.entries(autres).forEach(([j,x])=>L.push({nom:TTL.nomFichier(S.classe,j,n,'poule'),o:{app:'tennis-de-table-eleves',version:VERSION,type:'poule',activite:'Tennis de table',classe:S.classe,eleve:j,seance:n,date:today(),exportedAt:new Date().toISOString(),saisiPar:S.eleves.map(e=>e.nom).join(', '),poule:x.poule||null,tours:x.tours.length?x.tours:undefined}}));
   return L;
 }
@@ -542,13 +548,14 @@ async function montrerTransfert(i){
 function recevoirClasse(o){
   if(o.t!=='C')throw new Error('Ce n’est pas le QR de la classe.');
   const cfg={classe:o.c,eleves:o.l||[],lien:o.u||'',k:o.k||''};
+  if(o.pa){cfg.pa=o.pa;if(o.pal)cfg.pal=o.pal;if(o.h)cfg.h=o.h} // parcours de la classe (GAREEPS 2026 : paliers, polygones et choix déjà reçus)
   if(window.EPSCode)EPSCode.memoriserCle(o.c,o.cc);
   if(window.EPSCode&&EPSCode.appliquerJour&&o.cj)EPSCode.appliquerJour(o.c,o.cj); // QR du jour : ouvre la séance sans taper le code
   ROOT.classes[o.c]=cfg;
   ecrireRoot(); // les autres groupes de la classe recevront la nouvelle liste à leur ouverture
   if(!S||(S.eleves.length&&S.classe&&S.classe!==o.c)){setTimeout(()=>{if(S)verrouiller().then(rendre);demanderCode('Nouveau groupe · '+o.c,'Choisissez un code secret de 4 chiffres. Retenez-le : il sera demandé à chaque cours.',c=>nouveauGroupe(o.c,c),true)},300);return 'Classe '+o.c+' enregistrée.'}
   S.cfg=JSON.parse(JSON.stringify(cfg));S.classe=o.c;sauver();rendre();
-  return 'Classe '+o.c+' : '+(o.l||[]).length+' élèves.';
+  return 'Classe '+o.c+' : '+(o.l||[]).length+' élèves'+(o.pa==='g26'?' · parcours GAREEPS 2026':'')+'.';
 }
 function accueillir(o){
   if(o.t!=='T')throw new Error('Ce n’est pas un QR de changement de groupe.');
@@ -648,11 +655,12 @@ function qrSvg(txt){
 async function montrerQR(i){
   if(!QRS){const n=S.seance;const F=fichiers(n);
     // un QR par élève du groupe ; la poule (autres joueurs) part dans un seul QR
-    const el=F.filter(f=>f.o.type!=='poule');QRS=[];
+    const el=F.filter(f=>f.o.type!=='poule'&&f.o.type!=='sce');QRS=[];
     for(const f of el){const k=S.eleves.findIndex(E=>E.nom===f.o.eleve);QRS.push({titre:(k>=0?'ABC'[k]+' · ':'')+f.o.eleve,txt:await TTL.chaineQR(f.o)})}
     for(const [t,P] of toursDe(n)){
       const q={a:'TTE',v:1,t:'P',c:S.classe,s:+cleTour(n,t),d:today(),ts:Math.round(Date.now()/1000),p:[P.num,P.fmt,P.joueurs,P.arbDisp||'',P.matchs.map(m=>[m.a,m.b,m.arb,m.f||'',(m.m||[]).filter(x=>x&&x[0]!==''&&x[1]!=='').map(x=>[+x[0],+x[1]]),m.pj||0,m.pjok||0,m.codes?[m.codes.a,m.codes.b]:0])]};
       QRS.push({titre:'Poule '+P.num+(t>1?' · tour '+t:'')+' (tous les matchs)',txt:await chaineBrute(q)})}
+    if(window.G26V)for(const q of await G26V.qrs(n))QRS.push(q);
   }
   const k=Math.max(0,Math.min(i,QRS.length-1)),Q=QRS[k];
   let svg;try{svg=qrSvg(Q.txt)}catch(e){svg='<p class="avert">Trop de données pour un QR : utilise l’envoi en ligne.</p>'}
@@ -826,4 +834,4 @@ rendre();
 /* Code du cours (eps-code.js, commun) : la saisie ne s’ouvre qu’en cours, avec le code à 4 chiffres du professeur (2 h). */
 if(window.EPSCode)EPSCode.eleve({app:'tte',classe:()=>S&&S.classe||'',seance:()=>S?String(S.seance):'',seances:()=>Array.from({length:NB_SEANCES},(_,i)=>String(i+1)),nom:s=>'Séance '+s,
   ouvrir:s=>{if(!S)return;S.seance=+s;S.jours=S.jours||{};S.jours[today()]=+s;S.tour=1;sauver();rendre()},
-  actif:()=>!!S&&['seance','etoile','poule'].includes(S.tab),libre:['qui','tour','video','tab','seance','fermer','fermerVoile','qrnav'],demo:()=>typeof DEMO!=='undefined'&&DEMO});
+  actif:()=>!!S&&['seance','etoile','poule','sce','srp','stom'].includes(S.tab),libre:['qui','tour','video','tab','seance','fermer','fermerVoile','qrnav'],demo:()=>typeof DEMO!=='undefined'&&DEMO});

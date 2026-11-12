@@ -68,3 +68,9 @@ Bouton « Essayer l'appli (démo) » à l'accueil, ou adresse `…/tennis-de-tab
 
 ## QR de poule (19/10/2026)
 Onglet Poule → « Scanner le QR de la poule » (préparé par le prof) : séance, tour, numéro, format, joueurs et arbitre dispensé sont pré-remplis ; les élèves corrigent si besoin puis « Créer les matchs ».
+
+## Parcours GAREEPS 2026 (12/11/2026)
+Activé classe par classe par le professeur (outil prof → Classes → « Parcours de la classe »). Le QR de démarrage porte `pa:'g26'`, les paliers du polygone (`pal`) et l'historique des SCE déjà reçues (`h`). Sans ce réglage, l'appli reste exactement comme avant.
+- `donnees-g26.js` (identique dans l'outil prof) : 4 bonus / branches (rapide, architecte, KO avec « PAN ! », tactique), 4 SRP, 4 STOM × 3 ateliers à 2 niveaux, d'après les fiches d'Arnaud Boissière.
+- `gareeps26.js` : onglets **SCE** (table de 4, un téléphone, 4 matchs de 12 balles, rotation où l'on observe son prochain adversaire, bonus annoncés par l'observateur, polygone, 3 priorités), **SRP** (score parlant, temps mort à 6 balles en SRP 4), **STOM** (ateliers, 5 essais, niveau calculé).
+- Envoi : la table de SCE part dans un fichier `…_Table4_S1_sce1.json` ou un QR « SCE » (`t:'S'`) ; SRP et STOM dans le fichier de l'élève (`g26`, QR `g6`).
