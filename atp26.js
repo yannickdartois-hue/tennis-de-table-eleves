@@ -71,7 +71,8 @@ function vDirect(){
   const g=gristDoc(),R=rangs(),RG=rangsG(),L=liste();
   const ens=LIVE&&g&&navigator.onLine&&Date.now()-LIVE.t<60000;
   const tot={},J={};L.forEach(n=>{tot[n]=pts(n);J[n]={v:0,d:0,g:0,r:0}});
-  if(ens)LIVE.m.forEach(m=>{const w=m.sa>m.sb?m.a:m.b,l=w===m.a?m.b:m.a;if(!(w in tot)||!(l in tot))return;const gn=G26.atpGain(RG[w]||L.length,RG[l]||L.length);tot[w]+=gn;tot[l]+=A.perdu;J[w].v++;J[w].g+=gn;J[l].d++;J[l].g+=A.perdu});
+  const paire={}; // 2 matchs au plus contre le même adversaire : au-delà, 0 point (comme sur la borne)
+  if(ens)LIVE.m.slice().sort((x,y)=>(x.ts||0)-(y.ts||0)).forEach(m=>{const w=m.sa>m.sb?m.a:m.b,l=w===m.a?m.b:m.a;if(!(w in tot)||!(l in tot))return;const kp=[w,l].sort().join('|');paire[kp]=(paire[kp]||0)+1;if(paire[kp]>A.maxMemeAdv)return;const gn=G26.atpGain(RG[w]||L.length,RG[l]||L.length);tot[w]+=gn;tot[l]+=A.perdu;J[w].v++;J[w].g+=gn;J[l].d++;J[l].g+=A.perdu});
   if(ens)Object.entries(LIVE.ref||{}).forEach(([n,nb])=>{if(n in tot){tot[n]+=A.refus*nb;J[n].g+=A.refus*nb;J[n].r=nb}});
   const RT=G26.rangs(L,tot),ord=L.slice().sort((x,y)=>RT[x]-RT[y]),mine=new Set(S.eleves.map(e=>e.nom));
   return `<section class="carte"><h3>${ens?'🔴 Classement en direct':'Classement de départ'}</h3>
@@ -123,7 +124,7 @@ function gainTexte(a,b){const R=rangs(),G=rangsG(),n=liste().length;if(!a||!b)re
   return `Si <b>${esc(prenom(a))}</b> (${R[a]}ᵉ) gagne : +${G26.atpGain(G[a]||n,G[b]||n)} · si <b>${esc(prenom(b))}</b> (${R[b]}ᵉ) gagne : +${G26.atpGain(G[b]||n,G[a]||n)} · le perdant : +${A.perdu}${absJour().length?' <small class="muted">(absents du jour non comptés dans l’écart)</small>':''}`}
 function alertes(a,b){const w=[];if(!a||!b)return w;
   const n=matchs().filter(m=>m.fini&&((m.a===a&&m.b===b)||(m.a===b&&m.b===a))).length;
-  if(n>=A.maxMemeAdv)w.push(`${esc(prenom(a))} et ${esc(prenom(b))} se sont déjà affrontés ${n} fois aujourd’hui : ${A.maxMemeAdv} au maximum par séance.`);
+  if(n>=A.maxMemeAdv)w.push(`${esc(prenom(a))} et ${esc(prenom(b))} se sont déjà affrontés ${n} fois aujourd’hui : ${A.maxMemeAdv} au maximum par séance. Un 3e match ne rapporte aucun point.`);
   const dp=S.eleves.filter(e=>{const r=(S.d[e.id]||{})[S.seance];return r&&r.disp}).map(e=>e.nom).filter(n=>n===a||n===b);
   dp.forEach(n=>w.push(`${esc(prenom(n))} est dispensé(e) aujourd’hui : il arbitre, il ne joue pas.`));
   return w}

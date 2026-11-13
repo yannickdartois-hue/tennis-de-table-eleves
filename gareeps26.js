@@ -11,7 +11,7 @@
 (function(){
 'use strict';
 const PA=()=>!!(S&&S.cfg&&S.cfg.pa==='g26');
-const PAL=()=>(S&&S.cfg&&Array.isArray(S.cfg.pal)&&S.cfg.pal.length===3)?S.cfg.pal:G26.paliers;
+const PAL=()=>(S&&S.cfg&&Array.isArray(S.cfg.pp)&&S.cfg.pp.length===3)?S.cfg.pp:G26.palP; // paliers en % des points gagnés
 const HIST=()=>(S&&S.cfg&&S.cfg.h)||{};          // {nom:{s:{1:[R,A,K,T],…},ch:[…]}} envoyé par le prof
 const prenom=n=>String(n||'').split(/\s+/)[0];
 const KS=['R','A','K','T'];
@@ -71,10 +71,10 @@ function scoreM(m){let a=0,b=0;(m.b||[]).forEach(x=>{if(x[0]==='a')a++;else b++}
 function finiM(m){const s=scoreM(m);return (m.b||[]).length>=NB&&(s.a!==s.b||!!m.dec)}
 function gagnantM(m){const s=scoreM(m);return s.a>s.b?'a':s.b>s.a?'b':m.dec||null}
 // Bonus d'un joueur (index dans la table) sur toute la SCE
-function totaux(t,p){const v={R:0,A:0,K:0,T:0};let vic=0,j=0;
+function totaux(t,p){const v={R:0,A:0,K:0,T:0};let vic=0,j=0,pts=0;
   t.m.forEach((m,mi)=>{const [ia,ib]=ROT[mi],c=ia===p?'a':ib===p?'b':null;if(!c)return;j++;
-    (m.b||[]).forEach(x=>{if(x[0]===c&&x[1]&&x[1]!=='-')v[x[1]]++});if(finiM(m)&&gagnantM(m)===c)vic++});
-  return {v:KS.map(k=>v[k]),vic,j};
+    (m.b||[]).forEach(x=>{if(x[0]===c){pts++;if(x[1]&&x[1]!=='-')v[x[1]]++}});if(finiM(m)&&gagnantM(m)===c)vic++});
+  const n=KS.map(k=>v[k]);return {v:n,vic,j,pts,pc:G26.pct(n,pts)};
 }
 function bonusMatch(m,c){const v={R:0,A:0,K:0,T:0};(m.b||[]).forEach(x=>{if(x[0]===c&&x[1]&&x[1]!=='-')v[x[1]]++});return v}
 function chips(attr,L,sel,extra){return `<div class="g6chips">${L.map(x=>`<button type="button" data-act="${attr}" data-v="${esc(x)}" ${extra||''} class="${(sel||[]).includes(x)?'on':''}">${esc(x)}</button>`).join('')}</div>`}
@@ -94,13 +94,13 @@ function polygone(series,pal){
   G26.br.forEach((b,i)=>{const [x,y,a]=lab[i];g+=`<text x="${x}" y="${y}" text-anchor="${a}" font-family="Archivo,Arial" font-weight="800" font-size="15" fill="${b.col}">${b.ic} ${b.n}</text>`});
   return `<svg class="g6poly" viewBox="-75 0 490 300" role="img" aria-label="Polygone des bonus">${g}</svg>
   <div class="g6leg">${series.map(s=>`<span style="--c:${s.c}">${esc(s.l)}</span>`).join('')}</div>
-  <p class="small muted" style="text-align:center;margin:4px 0 0">Anneaux du centre vers l’extérieur : 0-${pal[0]-1} · ${pal[0]}-${pal[1]-1} · ${pal[1]}-${pal[2]-1} · ${pal[2]} bonus et +</p>`;
+  <p class="small muted" style="text-align:center;margin:4px 0 0">Chaque branche = la part de tes points gagnés avec ce bonus. Anneaux : moins de ${pal[0]} % · ${pal[0]}-${pal[1]-1} % · ${pal[1]}-${pal[2]-1} % · ${pal[2]} % et +</p>`;
 }
 // Polygones d'un élève : SCE précédentes (reçues du prof ou saisies ici) + celle du jour
 function seriesEleve(nom,jusqua){
   const parSce={},h=HIST()[nom];
-  if(h&&h.s)Object.entries(h.s).forEach(([n,v])=>parSce[n]=v);
-  Object.entries(tables()).forEach(([sn,t])=>{const p=t.J.indexOf(nom);if(p>=0&&(+sn<=(jusqua||99)))parSce[t.sce]=totaux(t,p).v});
+  if(h&&h.s)Object.entries(h.s).forEach(([n,v])=>{const pts=h.p&&h.p[n]!=null?h.p[n]:v.reduce((a,x)=>a+x,0);parSce[n]=G26.pct(v,pts)});
+  Object.entries(tables()).forEach(([sn,t])=>{const p=t.J.indexOf(nom);if(p>=0&&(+sn<=(jusqua||99)))parSce[t.sce]=totaux(t,p).pc});
   return Object.keys(parSce).map(Number).sort((a,b)=>a-b).slice(-3).map((n,i,L)=>({l:'SCE '+n,v:parSce[n],c:i===L.length-1?'#EA580C':['#64748b','#0891B2'][i]}));
 }
 // Dernier bilan (3 choix) d'un élève : saisi ici, sinon reçu du prof
@@ -177,14 +177,15 @@ function vObserve(t,mi){
 }
 function vResultats(t){
   const pal=PAL();
-  let h=`<section class="carte"><h3>Résultats de la table</h3><table class="g6tab"><tr><th>Joueur</th>${G26.br.map(b=>`<th title="${esc(b.n)}">${b.ic}</th>`).join('')}<th>Victoires</th></tr>
-  ${t.J.map((n,p)=>{const x=totaux(t,p);return `<tr><td><b>${esc(prenom(n))}</b></td>${x.v.map(v=>`<td>${v}</td>`).join('')}<td>${x.vic} / ${x.j}</td></tr>`}).join('')}</table>
+  let h=`<section class="carte"><h3>Résultats de la table</h3><table class="g6tab"><tr><th>Joueur</th>${G26.br.map(b=>`<th title="${esc(b.n)}">${b.ic}</th>`).join('')}<th>Points gagnés</th><th>Victoires</th></tr>
+  ${t.J.map((n,p)=>{const x=totaux(t,p);return `<tr><td><b>${esc(prenom(n))}</b></td>${x.v.map((v,i)=>`<td>${v}<br><small class="muted">${x.pc[i]} %</small></td>`).join('')}<td>${x.pts}</td><td>${x.vic} / ${x.j}</td></tr>`}).join('')}</table>
+  <p class="small muted" style="margin:6px 0 0">Nombre de bonus, et en dessous leur part parmi les points gagnés.</p>
   <p class="small muted" style="margin:8px 0 0">Chacun à son tour : son polygone, puis ses 3 priorités.</p></section>`;
   t.J.forEach((nom,p)=>{
     const tot=totaux(t,p),ser=seriesEleve(nom,S.seance),ch=(t.bil&&t.bil[p])||[];
-    const min=Math.min(...tot.v),court=G26.br.filter((b,i)=>tot.v[i]===min);
-    h+=`<section class="carte"><h3>${esc(nom)}</h3>${polygone(ser.length?ser:[{l:'SCE '+t.sce,v:tot.v,c:'#EA580C'}],pal)}
-    ${ser.length>1?`<p class="small" style="text-align:center">${G26.br.map((b,i)=>{const d=tot.v[i]-ser[ser.length-2].v[i];return b.ic+' '+(d>0?'+'+d:d===0?'=':d)}).join(' · ')} <span class="muted">depuis la SCE ${ser[ser.length-2].l.slice(4)}</span></p>`:''}
+    const min=Math.min(...tot.pc),court=G26.br.filter((b,i)=>tot.pc[i]===min);
+    h+=`<section class="carte"><h3>${esc(nom)}</h3>${polygone(ser.length?ser:[{l:'SCE '+t.sce,v:tot.pc,c:'#EA580C'}],pal)}
+    ${ser.length>1?`<p class="small" style="text-align:center">${G26.br.map((b,i)=>{const d=tot.pc[i]-ser[ser.length-2].v[i];return b.ic+' '+(d===0?'=':(d>0?'+':'')+d+' %')}).join(' · ')} <span class="muted">depuis la SCE ${ser[ser.length-2].l.slice(4)}</span></p>`:''}
     <div class="g6aide">💡 Ta branche la plus courte : <b>${court.map(b=>b.ic+' '+b.n).join(', ')}</b>. Tu choisis librement tes priorités.</div>
     <p class="g6k">Mes priorités (touche dans l’ordre : 1, 2, 3)</p>
     ${G26.br.map(b=>{const r=ch.indexOf(b.k);return `<button type="button" class="g6pri" data-act="g6ch" data-p="${p}" data-v="${b.k}"><span class="num" style="${r>=0?'background:'+b.col:''}">${r>=0?r+1:'–'}</span><span><b>${b.ic} ${esc(b.int)}</b><small>Savoir faire : ${esc(b.sf)}</small><small>Intérêt : ${esc(b.ip.join(' '))}</small></span></button>`}).join('')}
@@ -353,7 +354,7 @@ function tableBrute(t,n){
     sce:t.sce,table:t.tab,joueurs:t.J.slice(),
     matchs:t.m.map((m,mi)=>({ordre:ROT[mi],srv:m.srv||null,b:(m.b||[]).map(x=>x[0]+(x[1]||'-')).join(''),dec:m.dec||null,av:m.av||null})),
     obs:t.obs||{},bilans:t.bil||{},marqueur:t.dsp||'',
-    totaux:t.J.map((j,p)=>{const x=totaux(t,p);return {joueur:j,R:x.v[0],A:x.v[1],K:x.v[2],T:x.v[3],victoires:x.vic,choix:(t.bil&&t.bil[p])||[]}}),
+    totaux:t.J.map((j,p)=>{const x=totaux(t,p);return {joueur:j,R:x.v[0],A:x.v[1],K:x.v[2],T:x.v[3],pointsGagnes:x.pts,victoires:x.vic,choix:(t.bil&&t.bil[p])||[]}}),
     saisiPar:S.eleves.map(e=>e.nom).join(', ')};
 }
 function fichiers(n){const t=tables()[n],atp=window.ATP26?ATP26.fichiers(n):[];if(!t||!t.m.some(m=>(m.b||[]).length))return atp;

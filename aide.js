@@ -33,7 +33,7 @@ window.EPS_AIDE={appli:'Tennis de table · Élève',bouton:false,publics:[
 <li><b>Lecture facilitée</b> (case en haut de ce mode d’emploi) : la même police partout, lettres et lignes plus espacées. Utile en cas de dyslexie ; vaut pour toutes les applis EPS de la tablette.</li></ul>`}]},
 {id:'g26',titre:'GAREEPS 2026',chapitres:[
 {t:'Le principe : SCE → SRP → STOM',html:`<p>Si ta classe est sur le parcours <b>GAREEPS 2026</b>, les onglets sont : SCE, SRP, STOM, ATP, Poule, Règles, Envoyer.</p><ol>
-<li><b>SCE</b> : un vrai match, rejoué 3 fois dans le cycle. Un camarade compte <b>comment</b> tu gagnes tes points. Ton <b>polygone</b> montre ce qui te manque.</li>
+<li><b>SCE</b> : un vrai match, rejoué 3 fois dans le cycle. Un camarade compte <b>comment</b> tu gagnes tes points. Ton <b>polygone</b> montre, pour chaque bonus, la part de tes points gagnés avec ce bonus : ce qui compte, c’est la manière, pas le nombre de points.</li>
 <li><b>SRP</b> : un match à thème pour travailler ce manque, avec un <b>score parlant</b>.</li>
 <li><b>STOM</b> : un atelier technique si un geste te bloque. Après l’atelier, <b>retourne en SRP</b>.</li></ol>
 <p class="astuce">C’est toi qui choisis ce que tu travailles, d’après ton polygone.</p>`},
@@ -50,7 +50,7 @@ window.EPS_AIDE={appli:'Tennis de table · Élève',bouton:false,publics:[
 {t:'La STOM (ateliers)',html:`<ul><li>3 ateliers par STOM, chacun avec son image, sa vidéo, sa consigne et 2 niveaux.</li>
 <li>Choisis le niveau visé, puis note jusqu’à 5 essais : le niveau se valide tout seul.</li>
 <li>Après l’atelier, retourne jouer la SRP qui correspond.</li></ul>`},
-{t:'Le tournoi ATP',html:`<ul><li>En fin de séance, matchs en 11 points (à 10-10, point décisif). <b>Tu peux défier qui tu veux</b>, mais pas plus de 2 fois le même adversaire dans la séance.</li>
+{t:'Le tournoi ATP',html:`<ul><li>En fin de séance, matchs en 11 points (à 10-10, point décisif). <b>Tu peux défier qui tu veux</b>, mais pas plus de 2 fois le même adversaire dans la séance (un 3e match ne rapporte rien).</li>
 <li>C’est l’<b>arbitre</b> qui saisit : les 2 joueurs, puis le score. Celui qui attend arbitre, puis choisit son adversaire en priorité.</li>
 <li>Points : de 5,5 (battre un joueur 5 rangs au-dessus) à 1 (5 rangs en dessous) ; 0,5 pour une défaite ; −2 pour un match refusé. Ils se calculent avec le <b>classement du début de séance</b>, sans compter les absents du jour ; à points égaux, rang égal.</li>
 <li>Sans internet, les points affichés sur ton téléphone sont <b>provisoires</b> : un refus noté par le professeur n’apparaît qu’avec internet ou au cours suivant. La borne fait foi.</li>
