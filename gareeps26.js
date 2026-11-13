@@ -31,6 +31,10 @@ const css=`
 .g6pri{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;padding:10px;border:1.5px solid var(--trait);border-radius:12px;background:var(--craie);margin:6px 0;color:var(--encre)}
 .g6pri .num{width:32px;height:32px;border-radius:50%;flex:none;display:grid;place-items:center;font:900 17px var(--d);color:#fff;background:#9aa3ae}
 .g6pri b{font:800 18px/1.15 var(--d);font-stretch:80%}.g6pri small{display:block;color:var(--repere);font-size:max(14px,var(--fs-min,15px));line-height:1.3;margin-top:2px}
+.g6img{position:relative;margin:-4px -4px 0;border-radius:12px;overflow:hidden;background:#0f172a}.g6img img{width:100%;height:100%;object-fit:cover;display:block}
+.g6tag{position:absolute;left:0;top:12px;color:#fff;font-weight:900;font-style:italic;font-size:1.35em;text-transform:uppercase;padding:4px 14px 3px 10px;border-radius:0 10px 10px 0}
+.g6pill{position:absolute;left:12%;bottom:12%;background:rgba(11,15,25,.85);color:#fff;border:2px solid #4ade80;border-radius:999px;padding:3px 10px;font-weight:800;font-size:.75em;letter-spacing:1px;text-transform:uppercase}
+.g6pan{position:absolute;right:12px;bottom:12px;background:#fff;color:#DC2626;border-radius:12px;padding:0 10px;font-weight:900;font-style:italic;font-size:1.6em;transform:rotate(-7deg)}
 .g6sr{display:block;width:100%;text-align:left;background:var(--craie);border:1.5px solid var(--trait);border-left:8px solid var(--c);border-radius:12px;padding:10px 12px;margin:7px 0;color:var(--encre)}
 .g6sr.on{border-color:var(--c);box-shadow:0 0 0 2px var(--c)}
 .g6sr b{font:800 19px var(--d);font-stretch:80%}.g6sr small{display:block;color:var(--repere)}.g6sr em{font-style:normal;font-weight:700;color:var(--c);font-size:14px}
@@ -233,6 +237,18 @@ function scoreSRP(x){const d=G26.srp.find(s=>s.k===x.k),w=(x.b||'').split('').fi
 function srpFait(nom,k){let L=[];Object.values(S.d).forEach(D=>{});
   const E=S.eleves.find(e=>e.nom===nom);if(!E)return L;
   seancesDe(E.id).forEach(n=>{const r=S.d[E.id][n];((r.g26&&r.g26.srp)||[]).forEach(x=>{if(x.k===k&&(x.b||'').length>=NB)L.push(scoreSRP(x))})});return L}
+/* ---------- Les 4 bonus illustrés (visuels de l'affiche du gymnase) ---------- */
+const BON_TXT={R:['Point gagné en 2 frappes ou moins après mon service.','Seulement sur mon service.'],
+  A:['Point gagné sans toucher la zone centrale de l’adversaire.','Le centre est un trou : je joue sur les côtés.'],
+  K:['Point gagné juste après avoir crié « PAN ! ».','Pas de « PAN ! » crié = pas de bonus.'],
+  T:['Point gagné avec mon projet de jeu, écrit avant le match.','Je gagne le point comme je l’avais prévu.']};
+function imgBonus(k,h){const b=G26.brK[k];
+  return `<div class="g6img" style="height:${h||170}px"><img src="img/bonus/${k}.webp" alt="" loading="lazy"><span class="g6tag" style="background:${b.col}">${b.ic} ${esc(b.n)}</span>${k==='A'?'<span class="g6pill">Zone interdite</span>':''}${k==='K'?'<span class="g6pan">PAN !</span>':''}</div>`}
+function vReglesG26(){
+  return `<h2>Les 4 bonus</h2><p class="small muted" style="margin-top:-6px">Le point est gagné : comment ? L’observateur l’annonce à voix haute. 1 point = 1 bonus au plus ; un doute ? pas de bonus.</p>
+  ${KS.map(k=>`<section class="carte g6bcard" style="border-top:5px solid ${G26.brK[k].col}">${imgBonus(k,180)}<p style="margin:10px 0 2px;font-weight:800;font-size:1.05em">${esc(BON_TXT[k][0])}</p><p class="small muted" style="margin:0">${esc(BON_TXT[k][1])}</p></section>`).join('')}
+  ${typeof vRegles==='function'?vRegles():''}`;
+}
 /* ---------- Élève dispensé : il ne joue pas, il tient des rôles (AFL3) ---------- */
 const dispIci=()=>S.eleves.filter(e=>{const r=(S.d[e.id]||{})[S.seance];return r&&r.disp}).map(e=>e.nom);
 function caseDisp(r){return `<label class="coche disp" style="margin:0 0 10px"><input type="checkbox" data-ch="disp" ${r.disp?'checked':''}> Aujourd’hui je suis dispensé(e)</label>`}
@@ -262,7 +278,7 @@ function vSRP(){
     return `<button type="button" class="g6sr${cur===k?' on':''}" style="--c:${b.col}" data-act="g6srp" data-v="${k}"><b>SRP ${d.n} · ${esc(d.t)}</b><small>${esc(d.titre)} · bonus ×${d.x}</small>
     <em>${r2>=0?'Mon '+(r2?r2+1+'e':'1er')+' choix · ':''}${f.length?f.length+' match'+(f.length>1?'s':'')+' · meilleur : degré '+Math.max(...f.map(x=>x.deg)):'pas encore jouée'}</em></button>`}).join('');
   const d=G26.srp[G26.brK[cur].srp-1],cl=(S.cfg&&S.cfg.eleves||[]).filter(n=>n!==E.nom),sel=S.g6sel||{};
-  h+=`<section class="carte"><h3>SRP ${d.n} · ${esc(d.t)}</h3><p style="margin-top:0">${esc(d.obj)}</p><p class="small"><b>Bonus ×${d.x} :</b> ${esc(d.bon)}.</p>
+  h+=`<section class="carte">${imgBonus(cur,150)}<h3 style="margin-top:10px">SRP ${d.n} · ${esc(d.t)}</h3><p style="margin-top:0">${esc(d.obj)}</p><p class="small"><b>Bonus ×${d.x} :</b> ${esc(d.bon)}.</p>
   <label class="ch" for="g6adv">Adversaire (proche de toi au classement ATP)</label><select id="g6adv"><option value="">— Choisir —</option>${cl.map(n=>`<option${sel.adv===n?' selected':''}>${esc(n)}</option>`).join('')}</select>
   <label class="ch" for="g6ob">Mon observateur</label><select id="g6ob"><option value="">— Choisir —</option>${cl.map(n=>`<option${sel.obs===n?' selected':''}>${esc(n)}</option>`).join('')}</select>
   <p style="margin:12px 0 4px"><b>Qui sert en premier ?</b></p><div class="rangee"><button type="button" class="bt orange" data-act="g6sgo" data-v="moi">${esc(prenom(E.nom))}</button><button type="button" class="bt orange" data-act="g6sgo" data-v="adv">L’adversaire</button></div></section>`;
@@ -453,7 +469,7 @@ document.addEventListener('input',ev=>{
 window.G26V={
   actif:PA,
   onglets:()=>[['sce','🧪','SCE'],['srp','🏓','SRP'],['stom','🛠️','STOM'],['atp','🥇','ATP'],['poule','🏆','Poule'],['regles','📖','Règles'],['envoi','📤','Envoyer']],
-  vues:()=>({sce:vSCE,srp:vSRP,stom:vSTOM,atp:()=>window.ATP26?ATP26.vue():''}),
+  vues:()=>({sce:vSCE,srp:vSRP,stom:vSTOM,regles:vReglesG26,atp:()=>window.ATP26?ATP26.vue():''}),
   parEleve:['srp','stom'],
   export:exportEleve,fichiers,qrs,
   polygone,totaux
