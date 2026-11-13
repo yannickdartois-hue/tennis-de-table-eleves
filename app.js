@@ -549,7 +549,7 @@ async function montrerTransfert(i){
 function recevoirClasse(o){
   if(o.t!=='C')throw new Error('Ce n’est pas le QR de la classe.');
   const cfg={classe:o.c,eleves:o.l||[],lien:o.u||'',k:o.k||''};
-  if(o.pa){cfg.pa=o.pa;if(o.pal)cfg.pal=o.pal;if(o.h)cfg.h=o.h;if(o.gr)cfg.gr=o.gr;if(o.atp)cfg.atp=o.atp} // parcours de la classe (GAREEPS 2026 : paliers, polygones et choix déjà reçus)
+  if(o.pa){cfg.pa=o.pa;if(o.pal)cfg.pal=o.pal;if(o.h)cfg.h=o.h;if(o.gr)cfg.gr=o.gr;if(o.atp)cfg.atp=o.atp;if(o.ap)cfg.atpPal=o.ap} // parcours de la classe (GAREEPS 2026 : paliers, polygones et choix déjà reçus)
   if(window.EPSCode)EPSCode.memoriserCle(o.c,o.cc);
   if(window.EPSCode&&EPSCode.appliquerJour&&o.cj)EPSCode.appliquerJour(o.c,o.cj); // QR du jour : ouvre la séance sans taper le code
   ROOT.classes[o.c]=cfg;
