@@ -46,6 +46,32 @@ async function envoyer(){
 }
 setInterval(envoyer,20000);window.addEventListener('online',envoyer);
 
+/* ---------- Classement en direct (mode en ligne : lu dans Grist) ---------- */
+let LIVE=null; // {t, m:[{a,b,sa,sb,ts}]}
+async function lireDirect(){
+  const g=gristDoc();if(!g||!S||!navigator.onLine)return;
+  try{const r=await fetch(g.base+'/api/docs/'+g.id+'/tables/'+A.table+'/records?filter='+encodeURIComponent(JSON.stringify({classe:[S.classe],seance:[S.seance]})));
+    if(!r.ok)return;const C=G26.courts(liste()),inv={};Object.entries(C).forEach(([n,k])=>inv[k]=n);
+    const vus={},L=[];(await r.json()).records.forEach(({fields:f})=>{if(!f.uid||vus[f.uid])return;vus[f.uid]=1;L.push({id:f.uid,a:inv[f.j1]||f.j1,b:inv[f.j2]||f.j2,sa:+f.s1,sb:+f.s2,ts:+f.ts||0})});
+    // les matchs de ce téléphone pas encore partis comptent aussi
+    matchs().filter(m=>m.fini&&!vus[m.id]).forEach(m=>L.push({id:m.id,a:m.a,b:m.b,sa:m.sa,sb:m.sb,ts:m.ts}));
+    LIVE={t:Date.now(),m:L};
+    const f=document.activeElement;if(S.tab==='atp'&&!MQ6&&!document.querySelector('#modal .voile')&&!(f&&/SELECT|INPUT|TEXTAREA/.test(f.tagName)))rendre();
+  }catch(e){}
+}
+setInterval(()=>{if(S&&S.tab==='atp')lireDirect()},15000);
+function vDirect(){
+  const g=gristDoc(),R=rangs(),L=liste();
+  const ens=LIVE&&g&&navigator.onLine&&Date.now()-LIVE.t<60000;
+  const tot={},J={};L.forEach(n=>{tot[n]=pts(n);J[n]={v:0,d:0,g:0}});
+  if(ens)LIVE.m.forEach(m=>{const w=m.sa>m.sb?m.a:m.b,l=w===m.a?m.b:m.a;if(!(w in tot)||!(l in tot))return;const gn=G26.atpGain(R[w],R[l]);tot[w]+=gn;tot[l]+=A.perdu;J[w].v++;J[w].g+=gn;J[l].d++;J[l].g+=A.perdu});
+  const RT=G26.rangs(L,tot),ord=L.slice().sort((x,y)=>RT[x]-RT[y]),mine=new Set(S.eleves.map(e=>e.nom));
+  return `<section class="carte"><h3>${ens?'🔴 Classement en direct':'Classement de départ'}</h3>
+  <p class="small muted" style="margin-top:0">${ens?'Mis à jour toutes les 15 s depuis les matchs de toute la classe.':g?'Pas de réseau pour l’instant : classement du début de séance. Le direct est sur la borne.':'Classement du début de séance. Le classement en direct est sur la borne.'} Les points de chaque match se calculent toujours avec le classement de départ.</p>
+  <details${ens?' open':''}><summary class="small">Voir les ${ord.length} élèves</summary><table class="g6tab"><tr><th>Rang</th><th>Joueur</th><th>Pts</th>${ens?'<th>Aujourd’hui</th><th></th>':''}</tr>
+  ${ord.map(n=>{const d=R[n]-RT[n];return `<tr${mine.has(n)?' style="background:var(--ligne-pale);font-weight:700"':''}><td>${RT[n]}</td><td>${esc(n)}</td><td>${(Math.round(tot[n]*10)/10).toLocaleString('fr')}</td>${ens?`<td>${J[n].v||J[n].d?J[n].v+'-'+J[n].d+' (+'+J[n].g.toLocaleString('fr')+')':'—'}</td><td>${d>0?'<b style="color:var(--vert)">▲'+d+'</b>':d<0?'<b style="color:var(--alerte)">▼'+(-d)+'</b>':''}</td>`:''}</tr>`}).join('')}</table></details></section>`;
+}
+
 /* ---------- Écran ATP ---------- */
 let F={a:'',b:'',arb:''};
 /* ---------- Avatars (débloqués par palier de points) ---------- */
@@ -100,6 +126,8 @@ function vATP(){
   verifierDeblocage();
   let h=`<h2>Tournoi ATP · séance ${S.seance}</h2>${vAvatars()}
   ${D?`<p class="small muted">Classement de départ : séance ${D.s}.</p>`:'<p class="avert small">Classement pas encore reçu du professeur : tout le monde part à égalité. Les matchs comptent quand même.</p>'}`;
+  if(gristDoc()&&(!LIVE||Date.now()-LIVE.t>15000))setTimeout(lireDirect,50);
+  h+=vDirect();
   if(encours)h+=`<section class="carte"><h3>Match en cours</h3><p>${esc(encours.a)} – ${esc(encours.b)} : ${encours.sa}-${encours.sb}</p><button type="button" class="bt orange" data-act="atpmq">Reprendre le match</button></section>`;
   else h+=`<section class="carte"><h3>Nouveau match (11 points)</h3><p class="small muted" style="margin-top:0">C’est l’<b>arbitre</b> qui saisit. Tout élève qui attend arbitre, puis il choisit son adversaire en priorité.</p>
   <label class="ch" for="atp-arb">Arbitre</label><select id="atp-arb" data-atp="arb">${opt(F.arb,[F.a,F.b])}</select>
