@@ -124,6 +124,8 @@ function gainTexte(a,b){const R=rangs(),G=rangsG(),n=liste().length;if(!a||!b)re
 function alertes(a,b){const w=[];if(!a||!b)return w;
   const n=matchs().filter(m=>m.fini&&((m.a===a&&m.b===b)||(m.a===b&&m.b===a))).length;
   if(n>=A.maxMemeAdv)w.push(`${esc(prenom(a))} et ${esc(prenom(b))} se sont déjà affrontés ${n} fois aujourd’hui : ${A.maxMemeAdv} au maximum par séance.`);
+  const dp=S.eleves.filter(e=>{const r=(S.d[e.id]||{})[S.seance];return r&&r.disp}).map(e=>e.nom).filter(n=>n===a||n===b);
+  dp.forEach(n=>w.push(`${esc(prenom(n))} est dispensé(e) aujourd’hui : il arbitre, il ne joue pas.`));
   return w}
 function vATP(){
   const L=liste(),R=rangs(),RG=rangsG(),nL=L.length,D=depart(),M=matchs(),g=gristDoc();

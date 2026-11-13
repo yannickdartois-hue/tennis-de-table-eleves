@@ -115,7 +115,7 @@ function vSCE(){
   const t=T();
   if(!t)return vNouvelleTable();
   const fin=t.m.every(finiM)&&t.m.every(m=>m.etape>=3);
-  let h=`<h2>SCE n°${t.sce} · Table ${esc(t.tab)}</h2>
+  let h=`<h2>SCE n°${t.sce} · Table ${esc(t.tab)}</h2>${t.dsp?`<p class="small" style="margin:-4px 0 10px">🩹 Marqueur : <b>${esc(t.dsp)}</b> (dispensé·e) : il tient le téléphone.</p>`:''}
   <section class="carte"><h3>Ordre des matchs</h3><table class="g6tab"><tr><th>#</th><th>Match (12 balles)</th><th>Observateurs</th></tr>
   ${t.m.map((m,mi)=>{const [a,b,oa,ob]=ROT[mi],s=scoreM(m),ici=mi===t.cur&&!fin;
     return `<tr class="${ici?'ici':''}"><td>${mi+1}</td><td><b>${esc(prenom(t.J[a]))}</b> – <b>${esc(prenom(t.J[b]))}</b>${finiM(m)?` <span class="fait">${s.a}-${s.b}${m.dec?' (pt décisif)':''} ✓</span>`:''}</td><td class="small">${esc(prenom(t.J[oa]))} → ${esc(prenom(t.J[a]))}<br>${esc(prenom(t.J[ob]))} → ${esc(prenom(t.J[b]))}</td></tr>`}).join('')}</table>
@@ -143,7 +143,7 @@ function vSCE(){
   return h;
 }
 function vNouvelleTable(){
-  const L=(S.cfg&&S.cfg.eleves)||[],me=S.eleves.map(e=>e.nom);
+  const L=(S.cfg&&S.cfg.eleves)||[],me=S.eleves.map(e=>e.nom).filter(n=>!dispIci().includes(n));
   const sel=(i)=>`<select id="g6j${i}"><option value="">— Joueur ${'ABCD'[i]} —</option>${L.map(n=>`<option${me[i]===n?' selected':''}>${esc(n)}</option>`).join('')}</select>`;
   // numéro de SCE proposé : la suivante de la dernière connue pour les élèves du groupe
   let der=0;me.forEach(n=>{const h=HIST()[n];if(h&&h.s)Object.keys(h.s).forEach(k=>der=Math.max(der,+k))});
@@ -154,6 +154,7 @@ function vNouvelleTable(){
   <div class="g6k">SCE n°</div><div class="g6chips" id="g6sce">${[1,2,3].map(n=>`<button type="button" data-act="g6scen" data-v="${n}" class="${n===prop?'on':''}">SCE ${n}</button>`).join('')}</div>
   <label class="ch" for="g6tb">Table n°</label><input id="g6tb" type="text" inputmode="numeric" maxlength="2" placeholder="ex. 4" style="max-width:120px">
   <p class="g6k">Les 4 joueurs (de même niveau au classement ATP)</p>${[0,1,2,3].map(sel).join('')}
+  <label class="ch" for="g6dsp">Marqueur dispensé(e) (facultatif)</label><select id="g6dsp"><option value="">— aucun —</option>${L.map(n=>`<option${dispIci()[0]===n?' selected':''}>${esc(n)}</option>`).join('')}</select>
   <div class="rangee" style="margin-top:12px"><button type="button" class="bt orange" data-act="g6creer">Créer la table</button></div></section>
   <section class="carte"><h3>Comment ça marche</h3><ol class="small" style="margin:0;padding-left:20px">
     <li>Avant chaque match, chaque joueur note ses points forts (1er match) ou les points faibles de son adversaire (2e match), puis son projet de jeu.</li>
@@ -231,10 +232,27 @@ function scoreSRP(x){const d=G26.srp.find(s=>s.k===x.k),w=(x.b||'').split('').fi
 function srpFait(nom,k){let L=[];Object.values(S.d).forEach(D=>{});
   const E=S.eleves.find(e=>e.nom===nom);if(!E)return L;
   seancesDe(E.id).forEach(n=>{const r=S.d[E.id][n];((r.g26&&r.g26.srp)||[]).forEach(x=>{if(x.k===k&&(x.b||'').length>=NB)L.push(scoreSRP(x))})});return L}
+/* ---------- Élève dispensé : il ne joue pas, il tient des rôles (AFL3) ---------- */
+const dispIci=()=>S.eleves.filter(e=>{const r=(S.d[e.id]||{})[S.seance];return r&&r.disp}).map(e=>e.nom);
+function caseDisp(r){return `<label class="coche disp" style="margin:0 0 10px"><input type="checkbox" data-ch="disp" ${r.disp?'checked':''}> Aujourd’hui je suis dispensé(e)</label>`}
+function vDispense(E,quoi){
+  const n=E.nom;let srp=0,arb=0,sce=0;
+  S.eleves.forEach(x=>{const r=(S.d[x.id]||{})[S.seance];((r&&r.g26&&r.g26.srp)||[]).forEach(y=>{if(y.obs===n&&(y.b||'').length>=NB)srp++})});
+  (S.atp&&S.atp[S.seance]||[]).forEach(m=>{if(m.fini&&m.arb===n)arb++});
+  const t=T();if(t&&t.dsp===n)sce=1;
+  return `<section class="carte"><h3>🩹 Dispensé(e) : tu tiens des rôles</h3>
+  <p style="margin-top:0">${quoi} Tes rôles comptent pour l’<b>AFL3</b> :</p>
+  <ul style="margin:0;padding-left:20px">
+    <li><b>Marquer une SCE</b> : la table t’inscrit comme « marqueur » en créant la table ; tu tiens le téléphone pendant les 4 matchs et tu fais annoncer les bonus.</li>
+    <li><b>Observer une SRP</b> : le joueur te choisit comme « Mon observateur » ; tu comptes ses points et ses bonus. À la fin, dis-lui une chose réussie et une chose à travailler.</li>
+    <li><b>Arbitrer au tournoi ATP</b> : onglet ATP, tu saisis les matchs.</li></ul>
+  <p class="small" style="margin:10px 0 0"><b>Noté sur ce téléphone aujourd’hui :</b> ${sce?'SCE marquée · ':''}${srp} SRP observée${srp>1?'s':''} · ${arb} match${arb>1?'s':''} ATP arbitré${arb>1?'s':''}. Ce que tu fais sur le téléphone d’un camarade part avec son envoi.</p></section>`;
+}
 function vSRP(){
   const E=elv(),r=g6r(E),ch=choixDe(E.nom),cur=S.g6k&&S.g6k[E.id]||ch[0]||'R';
   const L=r.g26.srp;
-  let h=`<h2>SRP · ${esc(E.nom)}</h2>`;
+  let h=`<h2>SRP · ${esc(E.nom)}</h2>`+caseDisp(r);
+  if(r.disp)return h+vDispense(E,'Pas de match à thème aujourd’hui.');
   const enCours=L.findIndex(x=>(x.b||'').length<NB);
   if(enCours>=0)h+=`<section class="carte"><h3>Match en cours</h3><p>SRP ${G26.brK[L[enCours].k].srp} contre ${esc(L[enCours].adv||'?')} · balle ${L[enCours].b.length+1} sur ${NB}</p><button type="button" class="bt orange" data-act="g6sm" data-v="${enCours}">Reprendre</button></section>`;
   h+=ch.length?`<div class="g6aide">🎯 Ton bilan de SCE : ${ch.map((k,i)=>(i+1)+'. '+G26.brK[k].n).join(' · ')}</div>`:`<p class="small muted">Pas encore de bilan de SCE : choisis la SRP qui te semble utile.</p>`;
@@ -296,6 +314,7 @@ function vSTOM(){
   const ch=choixDe(E.nom),lastS=[...r.g26.srp].reverse().find(x=>(x.b||'').length>=NB);
   const k=SL[E.id]&&SL[E.id].k||(lastS&&lastS.k)||ch[0]||'R',at=SL[E.id]&&SL[E.id].k===k?SL[E.id].at:null;
   const D=G26.stom.find(s=>s.k===k),b=G26.brK[k];
+  if(r.disp)return `<h2>STOM · ${esc(E.nom)}</h2>`+caseDisp(r)+vDispense(E,'Pas d’atelier aujourd’hui.')+`<section class="carte"><p class="small" style="margin:0">Tu peux aussi aider un camarade en atelier : compter ses essais et vérifier le critère du niveau.</p></section>`;
   if(at){const a=D.at[at-1];
     let x=r.g26.stom.find(y=>y.k===k&&y.at===at);
     const nv=(x&&x.nv)||Math.min(2,niveauStom(E,k,at)+1);
@@ -333,7 +352,7 @@ function tableBrute(t,n){
   return {app:'tennis-de-table-eleves',version:VERSION,type:'sce',activite:'Tennis de table',classe:S.classe,seance:n,date:today(),exportedAt:new Date().toISOString(),
     sce:t.sce,table:t.tab,joueurs:t.J.slice(),
     matchs:t.m.map((m,mi)=>({ordre:ROT[mi],srv:m.srv||null,b:(m.b||[]).map(x=>x[0]+(x[1]||'-')).join(''),dec:m.dec||null,av:m.av||null})),
-    obs:t.obs||{},bilans:t.bil||{},
+    obs:t.obs||{},bilans:t.bil||{},marqueur:t.dsp||'',
     totaux:t.J.map((j,p)=>{const x=totaux(t,p);return {joueur:j,R:x.v[0],A:x.v[1],K:x.v[2],T:x.v[3],victoires:x.vic,choix:(t.bil&&t.bil[p])||[]}}),
     saisiPar:S.eleves.map(e=>e.nom).join(', ')};
 }
@@ -343,7 +362,7 @@ async function qrs(n){const t=tables()[n],atp=window.ATP26?await ATP26.qrs(n):[]
   const cut=(s,k)=>String(s||'').slice(0,k);
   const q={a:'TTE',v:1,t:'S',c:S.classe,s:n,d:today(),ts:Math.round(Date.now()/1000),n:t.sce,tb:t.tab,j:t.J,
     m:t.m.map(m=>[m.srv||'',(m.b||[]).map(x=>x[0]+(x[1]||'-')).join(''),m.dec||'',m.av?['a','b'].map(c=>m.av[c]?[cut(m.av[c].pj,90),Object.values(m.av[c].f||{}).flat().slice(0,6),(m.av[c].fo||[]).slice(0,4)]:0):0]),
-    bl:t.bil||{}};
+    bl:t.bil||{}};if(t.dsp)q.dsp=t.dsp;
   return atp.concat([{titre:'SCE '+t.sce+' · table '+t.tab+' (les 4 joueurs)',txt:await chaineBrute(q)}]);
 }
 
@@ -360,9 +379,11 @@ EPLUS.clic=async function(a,v,b,ev){
       const J=[0,1,2,3].map(i=>($('#g6j'+i)||{}).value||'').map(s=>s.trim());
       if(J.some(j=>!j)){toast('Choisis les 4 joueurs.');return true}
       if(new Set(J).size<4){toast('Un joueur est choisi deux fois.');return true}
+      const dsp=($('#g6dsp')||{}).value||'',dj=J.find(j=>j===dsp||dispIci().includes(j));
+      if(dj){toast(dj+' est dispensé(e) aujourd’hui : il marque, il ne joue pas.');return true}
       const tab=($('#g6tb').value||'').replace(/\D/g,'');if(!tab){toast('Indique le numéro de la table.');return true}
       const sb=document.querySelector('#g6sce button.on');
-      tables()[S.seance]={sce:sb?+sb.dataset.v:1,tab,J,m:ROT.map(()=>({b:[],etape:0,av:{}})),obs:{},bil:{},cur:0};
+      tables()[S.seance]={sce:sb?+sb.dataset.v:1,tab,J,m:ROT.map(()=>({b:[],etape:0,av:{}})),obs:{},bil:{},cur:0};if(dsp)tables()[S.seance].dsp=dsp;
       modif();sauver();rendre();window.scrollTo(0,0);return true}
     case 'g6fai':case 'g6for':{const m=t.m[t.cur],c=b.dataset.c;m.av=m.av||{};const av=m.av[c]=m.av[c]||{};
       if(a==='g6fai'){av.f=av.f||{};const L=av.f[b.dataset.f]=av.f[b.dataset.f]||[];const i=L.indexOf(v);if(i>=0)L.splice(i,1);else L.push(v)}

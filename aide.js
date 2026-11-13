@@ -59,6 +59,10 @@ window.EPS_AIDE={appli:'Tennis de table · Élève',bouton:false,publics:[
 {t:'Les avatars',html:`<ul><li>Onglet ATP → <b>Nos avatars</b> → « Changer ». Les personnages se débloquent par palier : 🥉 Bronze, 🥈 Argent, 🥇 Or, 💎 Diamant, selon tes points au tournoi.</li>
 <li>Ton avatar apparaît sur la borne quand tu joues. Pour l’y mettre tout de suite : « 📷 Avatar → borne », puis montre le QR à la borne.</li>
 <li>Les paliers changent au cours suivant, quand le QR de la classe est rescanné.</li></ul>`},
+{t:'Si je suis dispensé(e)',html:`<ul><li>Onglet <b>SRP</b> ou <b>STOM</b> : coche « Aujourd’hui je suis dispensé(e) ». Tu ne joues pas : tu tiens des <b>rôles</b> qui comptent pour l’AFL3.</li>
+<li><b>Marquer une SCE</b> : en créant la table, tes camarades te choisissent comme « Marqueur dispensé(e) ». Tu tiens le téléphone.</li>
+<li><b>Observer une SRP</b> : le joueur te choisit comme observateur.</li>
+<li><b>Arbitrer au tournoi ATP</b> : l’appli refuse un dispensé comme joueur, pas comme arbitre.</li></ul>`},
 {t:'Démo',html:`<p>Lien <b>…/tennis-de-table-eleves/?demo=g26</b> : un groupe fictif sur le parcours GAREEPS 2026 (rien n’est enregistré).</p>`}]},
 {id:'prof',titre:'Professeur',chapitres:[
 {t:'Mettre en place',html:`<ol><li>Outil prof → <b>Classes</b> : import Pronote, lien de dépôt du Nuage (« Demande de fichier »).</li>
