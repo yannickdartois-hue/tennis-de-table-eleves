@@ -323,7 +323,7 @@ function vSTOM(){
     return `<h2>${b.ic} ${esc(a.jeu)} <span class="small muted" style="font-weight:400">· STOM ${esc(D.t)}, atelier ${a.n}</span></h2>
     <p style="margin:0"><button type="button" class="bt mini" data-act="g6stomliste">← Les 3 ateliers</button></p>
     ${src||vid?illustration(src,vid,a.jeu,''):`<div class="illus sans"><span class="sansimg">${esc(a.t)}</span><span class="lv">Image et vidéo à venir</span></div>`}
-    ${a.ex&&a.pr?`<p class="small muted">${a.pr==='nouveau'?'':'Proche de ton exercice '+esc(a.ex)+' (vidéo).'}</p>`:''}
+    ${a.ex&&(a.pr==='proche'||a.pr==='partielle')?`<p class="avert small">⚠ La vidéo montre une <b>variante</b> de cet atelier : suis la <b>consigne écrite</b> ci-dessous.</p>`:''}${a.vn?`<p class="avert small">⚠ ${esc(a.vn)}</p>`:''}
     <section class="carte"><h3>${esc(a.t)}</h3><p style="margin-top:0"><b>Consigne :</b> ${esc(a.c)} <span class="small muted">(1 joueur, 1 observateur, ${a.b} balles)</span></p>
     <div class="g6k">Critères de réalisation</div><ul class="small" style="margin:0;padding-left:20px">${a.cr.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>
     <div class="g6k">Critères de réussite</div><div class="g6chips">${[1,2].map(v=>`<button type="button" data-act="g6nv" data-v="${v}" class="${nv===v?'on':''}">Niveau ${v} : ${esc(a.nv[v-1])}</button>`).join('')}</div></section>
