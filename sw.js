@@ -1,6 +1,6 @@
 /* Hors ligne : l'appli est gardée sur le téléphone après la 1re ouverture.
    Après une modification, augmenter VERSION (ex. tte-v12 → tte-v12). */
-const VERSION='tennis-de-table-eleves-v57';
+const VERSION='tennis-de-table-eleves-v58';
 // Toutes les applis partagent le même stockage (même adresse github.io) : on n'efface QUE les anciennes versions de CETTE appli.
 const MES_CACHES=/^(?:tennis\-de\-table\-eleves\-v|tte\-v)\d+$/;
 
@@ -11,11 +11,13 @@ const FICHIERS=['./','eps-rappel.js','eps-code.js','eps-maj.js','eps-avatars.js'
   'polices/archivo.woff2','polices/atkinson-400.woff2','polices/atkinson-700.woff2',
   ...['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31','32','33','34','A1','A2','A3','A4','R1','R2','R3','R4','R5','R6','R7','R8','R9','R10','R11'].map(n=>'img/ex'+n+'.jpg'),
   ...[1,2,3,4,5,6,7].map(n=>'img/mt'+n+'.jpg')];
-self.addEventListener('install',e=>{e.waitUntil(caches.open(VERSION).then(c=>c.addAll(FICHIERS)).then(()=>self.skipWaiting()))});
+self.addEventListener('install',e=>{e.waitUntil(caches.open(VERSION).then(c=>c.addAll(FICHIERS.map(f=>new Request(f,{cache:'reload'})))).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>MES_CACHES.test(k)&&k!==VERSION).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 // Réseau d'abord (pour recevoir les mises à jour), cache si pas de connexion.
 self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET'||new URL(e.request.url).origin!==location.origin)return;
-  const net=fetch(e.request).then(r=>{const c=r.clone();caches.open(VERSION).then(x=>x.put(e.request,c));return r});
+  // cache:'no-cache' : le navigateur revérifie chaque fichier auprès de GitHub (réponse 304 légère si rien n'a changé),
+  // sinon il resservait jusqu'à 10 min l'ancienne version de son cache HTTP après une mise à jour.
+  const net=fetch(e.request,{cache:'no-cache'}).then(r=>{const c=r.clone();caches.open(VERSION).then(x=>x.put(e.request,c));return r});
   e.respondWith(sous3s(net).catch(()=>caches.match(e.request,{ignoreSearch:true}).then(h=>h||net)));
 });
