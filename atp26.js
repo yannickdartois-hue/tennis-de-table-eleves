@@ -10,8 +10,13 @@
 'use strict';
 const A=G26.atp;
 const liste=()=>(S&&S.cfg&&S.cfg.eleves)||[];
+let LIVE=null; // {t, m:[{a,b,sa,sb,ts}], ref:{nom:nombre de refus du jour}} lu dans Grist
 const depart=()=>(S&&S.cfg&&S.cfg.atp)||null;        // {s:séance, p:{nom:points cumulés}} envoyé par le prof
 const rangs=()=>G26.rangs(liste(),(depart()||{}).p);
+// Rangs pour le calcul des points : sans les absents du jour (liste envoyée par le prof), rang égal à points égaux
+const absJour=()=>{const d=depart();return d&&d.s===S.seance&&Array.isArray(d.ab)?d.ab:[]};
+const joueJour=()=>matchs().flatMap(m=>[m.a,m.b]).concat(LIVE?LIVE.m.flatMap(m=>[m.a,m.b]):[]);
+const rangsG=()=>G26.rangsG(liste(),(depart()||{}).p,absJour(),joueJour());
 const pts=n=>+(((depart()||{}).p||{})[n]||0);
 const matchs=()=>{S.atp=S.atp||{};return S.atp[S.seance]||(S.atp[S.seance]=[])};
 const prenom=n=>String(n||'').split(/\s+/).find(x=>!(x.length>1&&x===x.toUpperCase()))||String(n||'').split(/\s+/)[0];
@@ -47,29 +52,32 @@ async function envoyer(){
 setInterval(envoyer,20000);window.addEventListener('online',envoyer);
 
 /* ---------- Classement en direct (mode en ligne : lu dans Grist) ---------- */
-let LIVE=null; // {t, m:[{a,b,sa,sb,ts}]}
+// LIVE : voir plus haut
 async function lireDirect(){
   const g=gristDoc();if(!g||!S||!navigator.onLine)return;
   try{const r=await fetch(g.base+'/api/docs/'+g.id+'/tables/'+A.table+'/records?filter='+encodeURIComponent(JSON.stringify({classe:[S.classe],seance:[S.seance]})));
     if(!r.ok)return;const C=G26.courts(liste()),inv={};Object.entries(C).forEach(([n,k])=>inv[k]=n);
-    const vus={},L=[];(await r.json()).records.forEach(({fields:f})=>{if(!f.uid||vus[f.uid])return;vus[f.uid]=1;L.push({id:f.uid,a:inv[f.j1]||f.j1,b:inv[f.j2]||f.j2,sa:+f.s1,sb:+f.s2,ts:+f.ts||0})});
+    const vus={},L=[],ref={};(await r.json()).records.forEach(({fields:f})=>{if(!f.uid||vus[f.uid])return;vus[f.uid]=1;
+      if(f.j2==='REFUS'){const n=inv[f.j1]||f.j1;if(+f.s1)ref[n]=+f.s1;return} // refus notés par le professeur
+      L.push({id:f.uid,a:inv[f.j1]||f.j1,b:inv[f.j2]||f.j2,sa:+f.s1,sb:+f.s2,ts:+f.ts||0})});
     // les matchs de ce téléphone pas encore partis comptent aussi
     matchs().filter(m=>m.fini&&!vus[m.id]).forEach(m=>L.push({id:m.id,a:m.a,b:m.b,sa:m.sa,sb:m.sb,ts:m.ts}));
-    LIVE={t:Date.now(),m:L};
+    LIVE={t:Date.now(),m:L,ref};
     const f=document.activeElement;if(S.tab==='atp'&&!MQ6&&!document.querySelector('#modal .voile')&&!(f&&/SELECT|INPUT|TEXTAREA/.test(f.tagName)))rendre();
   }catch(e){}
 }
 setInterval(()=>{if(S&&S.tab==='atp')lireDirect()},15000);
 function vDirect(){
-  const g=gristDoc(),R=rangs(),L=liste();
+  const g=gristDoc(),R=rangs(),RG=rangsG(),L=liste();
   const ens=LIVE&&g&&navigator.onLine&&Date.now()-LIVE.t<60000;
-  const tot={},J={};L.forEach(n=>{tot[n]=pts(n);J[n]={v:0,d:0,g:0}});
-  if(ens)LIVE.m.forEach(m=>{const w=m.sa>m.sb?m.a:m.b,l=w===m.a?m.b:m.a;if(!(w in tot)||!(l in tot))return;const gn=G26.atpGain(R[w],R[l]);tot[w]+=gn;tot[l]+=A.perdu;J[w].v++;J[w].g+=gn;J[l].d++;J[l].g+=A.perdu});
+  const tot={},J={};L.forEach(n=>{tot[n]=pts(n);J[n]={v:0,d:0,g:0,r:0}});
+  if(ens)LIVE.m.forEach(m=>{const w=m.sa>m.sb?m.a:m.b,l=w===m.a?m.b:m.a;if(!(w in tot)||!(l in tot))return;const gn=G26.atpGain(RG[w]||L.length,RG[l]||L.length);tot[w]+=gn;tot[l]+=A.perdu;J[w].v++;J[w].g+=gn;J[l].d++;J[l].g+=A.perdu});
+  if(ens)Object.entries(LIVE.ref||{}).forEach(([n,nb])=>{if(n in tot){tot[n]+=A.refus*nb;J[n].g+=A.refus*nb;J[n].r=nb}});
   const RT=G26.rangs(L,tot),ord=L.slice().sort((x,y)=>RT[x]-RT[y]),mine=new Set(S.eleves.map(e=>e.nom));
   return `<section class="carte"><h3>${ens?'🔴 Classement en direct':'Classement de départ'}</h3>
-  <p class="small muted" style="margin-top:0">${ens?'Mis à jour toutes les 15 s depuis les matchs de toute la classe.':g?'Pas de réseau pour l’instant : classement du début de séance. Le direct est sur la borne.':'Classement du début de séance. Le classement en direct est sur la borne.'} Les points de chaque match se calculent toujours avec le classement de départ.</p>
+  <p class="small muted" style="margin-top:0">${ens?'Mis à jour toutes les 15 s depuis les matchs de toute la classe.':g?'Pas de réseau pour l’instant : classement du début de séance. Le direct est sur la borne.':'Classement du début de séance. Le classement en direct est sur la borne.'} Les points de chaque match se calculent avec le classement de départ${absJour().length?', sans compter les absents du jour':''}.${ens?' Les refus notés par le professeur comptent (−2).':' <b>Points provisoires</b> : les refus notés par le professeur n’apparaissent qu’avec internet ou au cours suivant. La borne fait foi.'}</p>
   <details${ens?' open':''}><summary class="small">Voir les ${ord.length} élèves</summary><table class="g6tab"><tr><th>Rang</th><th>Joueur</th><th>Pts</th>${ens?'<th>Aujourd’hui</th><th></th>':''}</tr>
-  ${ord.map(n=>{const d=R[n]-RT[n];return `<tr${mine.has(n)?' style="background:var(--ligne-pale);font-weight:700"':''}><td>${RT[n]}</td><td>${esc(n)}</td><td>${(Math.round(tot[n]*10)/10).toLocaleString('fr')}</td>${ens?`<td>${J[n].v||J[n].d?J[n].v+'-'+J[n].d+' (+'+J[n].g.toLocaleString('fr')+')':'—'}</td><td>${d>0?'<b style="color:var(--vert)">▲'+d+'</b>':d<0?'<b style="color:var(--alerte)">▼'+(-d)+'</b>':''}</td>`:''}</tr>`}).join('')}</table></details></section>`;
+  ${ord.map(n=>{const d=R[n]-RT[n];return `<tr${mine.has(n)?' style="background:var(--ligne-pale);font-weight:700"':''}><td>${RT[n]}</td><td>${esc(n)}</td><td>${(Math.round(tot[n]*10)/10).toLocaleString('fr')}</td>${ens?`<td>${J[n].v||J[n].d||J[n].r?J[n].v+'-'+J[n].d+' ('+(J[n].g>=0?'+':'')+J[n].g.toLocaleString('fr')+')'+(J[n].r?' · '+J[n].r+' refus':''):'—'}</td><td>${d>0?'<b style="color:var(--vert)">▲'+d+'</b>':d<0?'<b style="color:var(--alerte)">▼'+(-d)+'</b>':''}</td>`:''}</tr>`}).join('')}</table></details></section>`;
 }
 
 /* ---------- Écran ATP ---------- */
@@ -111,14 +119,14 @@ const cssAv=document.createElement('style');cssAv.textContent=`
 .av-unlock{text-align:center;background:#07031a;color:#fff;border-radius:14px;padding:14px;margin:-6px}.av-unlock .t{font:900 24px "Courier New",monospace;color:#ffe600;text-shadow:0 0 12px #ffe600;margin:4px 0;animation:avp .6s cubic-bezier(.2,1.6,.4,1)}
 @keyframes avp{from{transform:scale(.3)}to{transform:scale(1)}}`;document.head.appendChild(cssAv);
 
-function gainTexte(a,b){const R=rangs();if(!a||!b)return '';
-  return `Si <b>${esc(prenom(a))}</b> (${R[a]}ᵉ) gagne : +${G26.atpGain(R[a],R[b])} · si <b>${esc(prenom(b))}</b> (${R[b]}ᵉ) gagne : +${G26.atpGain(R[b],R[a])} · le perdant : +${A.perdu}`}
+function gainTexte(a,b){const R=rangs(),G=rangsG(),n=liste().length;if(!a||!b)return '';
+  return `Si <b>${esc(prenom(a))}</b> (${R[a]}ᵉ) gagne : +${G26.atpGain(G[a]||n,G[b]||n)} · si <b>${esc(prenom(b))}</b> (${R[b]}ᵉ) gagne : +${G26.atpGain(G[b]||n,G[a]||n)} · le perdant : +${A.perdu}${absJour().length?' <small class="muted">(absents du jour non comptés dans l’écart)</small>':''}`}
 function alertes(a,b){const w=[];if(!a||!b)return w;
   const n=matchs().filter(m=>m.fini&&((m.a===a&&m.b===b)||(m.a===b&&m.b===a))).length;
   if(n>=A.maxMemeAdv)w.push(`${esc(prenom(a))} et ${esc(prenom(b))} se sont déjà affrontés ${n} fois aujourd’hui : ${A.maxMemeAdv} au maximum par séance.`);
   return w}
 function vATP(){
-  const L=liste(),R=rangs(),D=depart(),M=matchs(),g=gristDoc();
+  const L=liste(),R=rangs(),RG=rangsG(),nL=L.length,D=depart(),M=matchs(),g=gristDoc();
   const ord=L.slice().sort((x,y)=>R[x]-R[y]);
   const opt=(sel,ex)=>`<option value="">— Choisir —</option>`+ord.map(n=>`<option value="${esc(n)}"${n===sel?' selected':''}${ex.includes(n)?' disabled':''}>${R[n]}. ${esc(n)} (${pts(n)} pts)</option>`).join('');
   const encours=M.find(m=>!m.fini);
@@ -138,7 +146,7 @@ function vATP(){
   <p style="margin:10px 0 4px"><b>Qui sert en premier ?</b></p><div class="rangee"><button type="button" class="bt orange" data-act="atpgo" data-v="a">Joueur 1</button><button type="button" class="bt orange" data-act="atpgo" data-v="b">Joueur 2</button></div></section>`;
   const faits=M.filter(m=>m.fini);
   h+=`<section class="carte"><h3>Matchs saisis sur ce téléphone (${faits.length})</h3>${faits.length?`<table class="g6tab"><tr><th>Match</th><th>Score</th><th></th></tr>${faits.slice().reverse().map(m=>{const w=m.sa>m.sb?m.a:m.b,l=w===m.a?m.b:m.a;
-    return `<tr><td><b>${esc(prenom(w))}</b> bat ${esc(prenom(l))}<br><small class="muted">+${G26.atpGain(R[w],R[l])} / +${A.perdu}${m.arb?' · arbitre '+esc(prenom(m.arb)):''}</small></td><td>${Math.max(m.sa,m.sb)}-${Math.min(m.sa,m.sb)}</td><td style="white-space:nowrap">${g?(m.gr?'☁️':'⏳'):''} <button type="button" class="bt mini" data-act="atpqr" data-v="${esc(m.id)}" title="QR à scanner à la borne">QR</button></td></tr>`}).join('')}</table>`:'<p class="small muted">Aucun pour l’instant.</p>'}
+    return `<tr><td><b>${esc(prenom(w))}</b> bat ${esc(prenom(l))}<br><small class="muted">+${G26.atpGain(RG[w]||nL,RG[l]||nL)} / +${A.perdu}${m.arb?' · arbitre '+esc(prenom(m.arb)):''}</small></td><td>${Math.max(m.sa,m.sb)}-${Math.min(m.sa,m.sb)}</td><td style="white-space:nowrap">${g?(m.gr?'☁️':'⏳'):''} <button type="button" class="bt mini" data-act="atpqr" data-v="${esc(m.id)}" title="QR à scanner à la borne">QR</button></td></tr>`}).join('')}</table>`:'<p class="small muted">Aucun pour l’instant.</p>'}
   ${g?`<p class="small muted" style="margin:8px 0 0">☁️ envoyé en direct au professeur · ⏳ en attente de réseau${att?` <button type="button" class="bt mini" data-act="atpenvoi">Réessayer (${att})</button>`:''}</p>`:'<p class="small muted" style="margin:8px 0 0">Les matchs partent avec la séance (onglet Envoyer).</p>'}</section>
   <section class="carte"><h3>Barème (règlement du tournoi)</h3><table class="g6tab"><tr><th>Victoire contre un joueur classé…</th><th>Points</th></tr>
   ${[5,4,3,2,1].map(k=>`<tr><td>${k===5?'5 rangs au-dessus et plus':k+' rang'+(k>1?'s':'')+' au-dessus'}</td><td>${A.dessus[k-1]}</td></tr>`).join('')}

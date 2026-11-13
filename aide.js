@@ -52,7 +52,8 @@ window.EPS_AIDE={appli:'Tennis de table · Élève',bouton:false,publics:[
 <li>Après l’atelier, retourne jouer la SRP qui correspond.</li></ul>`},
 {t:'Le tournoi ATP',html:`<ul><li>En fin de séance, matchs en 11 points (à 10-10, point décisif). <b>Tu peux défier qui tu veux</b>, mais pas plus de 2 fois le même adversaire dans la séance.</li>
 <li>C’est l’<b>arbitre</b> qui saisit : les 2 joueurs, puis le score. Celui qui attend arbitre, puis choisit son adversaire en priorité.</li>
-<li>Points : de 5,5 (battre un joueur 5 rangs au-dessus) à 1 (5 rangs en dessous) ; 0,5 pour une défaite ; −2 pour un match refusé. Ils se calculent avec le <b>classement du début de séance</b>.</li>
+<li>Points : de 5,5 (battre un joueur 5 rangs au-dessus) à 1 (5 rangs en dessous) ; 0,5 pour une défaite ; −2 pour un match refusé. Ils se calculent avec le <b>classement du début de séance</b>, sans compter les absents du jour ; à points égaux, rang égal.</li>
+<li>Sans internet, les points affichés sur ton téléphone sont <b>provisoires</b> : un refus noté par le professeur n’apparaît qu’avec internet ou au cours suivant. La borne fait foi.</li>
 <li>Après le match : montre le <b>QR</b> à la <b>borne</b> (tablette sur trépied). Avec internet, le match part aussi tout seul.</li>
 <li>Le classement en direct est sur la borne ; avec internet, il s’affiche aussi dans l’onglet ATP.</li></ul>`},
 {t:'Les avatars',html:`<ul><li>Onglet ATP → <b>Nos avatars</b> → « Changer ». Les personnages se débloquent par palier : 🥉 Bronze, 🥈 Argent, 🥇 Or, 💎 Diamant, selon tes points au tournoi.</li>

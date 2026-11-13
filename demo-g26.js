@@ -14,7 +14,7 @@ function ouvrir(){
   const s=vide(),L=NOMS.concat(AUTRES);
   s.classe='DÉMO';s.eleves=NOMS.map(nom=>({id:uid(),nom}));
   s.cfg={classe:'DÉMO',eleves:L,lien:'',pa:'g26',pal:[2,4,6],atpPal:[10,20,30],
-    atp:{s:5,p:{'Max GIRARD':24,'Tom DURAND':19.5,'Léa MARTIN':12,'Zoé LEROY':11,'Hugo BERNARD':9.5,'Inès PETIT':8,'Jade NOEL':6.5,'Nina ROUX':5,'Sacha FAURE':3.5,'Adam MOREL':2}},
+    atp:{s:5,p:{'Max GIRARD':24,'Tom DURAND':19.5,'Léa MARTIN':12,'Zoé LEROY':11,'Hugo BERNARD':9.5,'Inès PETIT':8,'Jade NOEL':6.5,'Nina ROUX':5,'Sacha FAURE':3.5,'Adam MOREL':2},ab:['Sacha FAURE']},
     h:{'Léa MARTIN':{s:{1:[1,2,0,1]},ch:['K','T']},'Hugo BERNARD':{s:{1:[2,0,1,0]},ch:['A','R']}}};
   // SCE n°2 (séance 5) : table 3 terminée
   const J=['Léa MARTIN','Hugo BERNARD','Zoé LEROY','Inès PETIT'];
