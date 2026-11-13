@@ -31,6 +31,34 @@ window.EPS_AIDE={appli:'Tennis de table · Élève',bouton:false,publics:[
 <li><b>Code oublié</b> : le carnet ne s’ouvre plus. Le professeur te donne un <b>QR de reprise</b> qui te rend ton étoile, tes axes et tes poules.</li>
 <li>Le carnet se verrouille après 20 min sans activité sur une tablette partagée, après 2 h sur un téléphone avec un seul carnet.</li>
 <li><b>Lecture facilitée</b> (case en haut de ce mode d’emploi) : la même police partout, lettres et lignes plus espacées. Utile en cas de dyslexie ; vaut pour toutes les applis EPS de la tablette.</li></ul>`}]},
+{id:'g26',titre:'GAREEPS 2026',chapitres:[
+{t:'Le principe : SCE → SRP → STOM',html:`<p>Si ta classe est sur le parcours <b>GAREEPS 2026</b>, les onglets sont : SCE, SRP, STOM, ATP, Poule, Règles, Envoyer.</p><ol>
+<li><b>SCE</b> : un vrai match, rejoué 3 fois dans le cycle. Un camarade compte <b>comment</b> tu gagnes tes points. Ton <b>polygone</b> montre ce qui te manque.</li>
+<li><b>SRP</b> : un match à thème pour travailler ce manque, avec un <b>score parlant</b>.</li>
+<li><b>STOM</b> : un atelier technique si un geste te bloque. Après l’atelier, <b>retourne en SRP</b>.</li></ol>
+<p class="astuce">C’est toi qui choisis ce que tu travailles, d’après ton polygone.</p>`},
+{t:'La SCE à la table de 4',html:`<ol><li>Onglet <b>SCE</b> : numéro de la SCE, numéro de la table, les 4 joueurs. <b>Un seul téléphone</b> pour la table.</li>
+<li>4 matchs de 12 balles, dans l’ordre affiché. Les deux autres observent. <b>Au match suivant, tu affrontes celui que tu viens d’observer.</b></li>
+<li>Avant le match : 1er match, tes <b>points forts</b> ; 2e match, les <b>points faibles</b> de ton adversaire (déjà cochés d’après ton observation). Puis ton <b>projet de jeu</b>.</li>
+<li>Pendant le match : on touche le côté du joueur qui marque, puis son bonus. L’observateur de ce joueur l’annonce à voix haute :
+<ul><li>⚡ <b>Rapide</b> : gagné en 2 frappes ou moins après son service ;</li><li>📐 <b>Architecte</b> : gagné sans toucher la zone centrale ;</li><li>💥 <b>KO</b> : gagné après avoir crié « PAN ! » ;</li><li>🎯 <b>Tactique</b> : gagné avec son projet de jeu.</li></ul></li>
+<li>Après les 4 matchs : chacun voit son polygone et choisit ses <b>3 priorités</b>.</li></ol>`},
+{t:'La SRP (match à thème)',html:`<ul><li>Choisis ta SRP (celle de ton bilan est en tête), ton adversaire proche au classement et ton observateur.</li>
+<li>12 balles : l’observateur touche « point + bonus », « point » ou « point de l’adversaire ». Le <b>score parlant</b> et le <b>degré</b> (1 à 4) se calculent seuls.</li>
+<li>SRP 1 : bonus seulement sur tes services. SRP 3 : il faut crier « PAN ! ». SRP 4 : <b>temps mort à 6 balles</b> avec ton observateur, bonus à partir de la balle 7.</li>
+<li>À la fin : les questions à se poser, puis « Rejouer » ou « Travailler en STOM ».</li></ul>`},
+{t:'La STOM (ateliers)',html:`<ul><li>3 ateliers par STOM, chacun avec son image, sa vidéo, sa consigne et 2 niveaux.</li>
+<li>Choisis le niveau visé, puis note jusqu’à 5 essais : le niveau se valide tout seul.</li>
+<li>Après l’atelier, retourne jouer la SRP qui correspond.</li></ul>`},
+{t:'Le tournoi ATP',html:`<ul><li>En fin de séance, matchs en 11 points (à 10-10, point décisif). <b>Tu peux défier qui tu veux</b>, mais pas plus de 2 fois le même adversaire dans la séance.</li>
+<li>C’est l’<b>arbitre</b> qui saisit : les 2 joueurs, puis le score. Celui qui attend arbitre, puis choisit son adversaire en priorité.</li>
+<li>Points : de 5,5 (battre un joueur 5 rangs au-dessus) à 1 (5 rangs en dessous) ; 0,5 pour une défaite ; −2 pour un match refusé. Ils se calculent avec le <b>classement du début de séance</b>.</li>
+<li>Après le match : montre le <b>QR</b> à la <b>borne</b> (tablette sur trépied). Avec internet, le match part aussi tout seul.</li>
+<li>Le classement en direct est sur la borne ; avec internet, il s’affiche aussi dans l’onglet ATP.</li></ul>`},
+{t:'Les avatars',html:`<ul><li>Onglet ATP → <b>Nos avatars</b> → « Changer ». Les personnages se débloquent par palier : 🥉 Bronze, 🥈 Argent, 🥇 Or, 💎 Diamant, selon tes points au tournoi.</li>
+<li>Ton avatar apparaît sur la borne quand tu joues. Pour l’y mettre tout de suite : « 📷 Avatar → borne », puis montre le QR à la borne.</li>
+<li>Les paliers changent au cours suivant, quand le QR de la classe est rescanné.</li></ul>`},
+{t:'Démo',html:`<p>Lien <b>…/tennis-de-table-eleves/?demo=g26</b> : un groupe fictif sur le parcours GAREEPS 2026 (rien n’est enregistré).</p>`}]},
 {id:'prof',titre:'Professeur',chapitres:[
 {t:'Mettre en place',html:`<ol><li>Outil prof → <b>Classes</b> : import Pronote, lien de dépôt du Nuage (« Demande de fichier »).</li>
 <li>Premier cours : <b>QR de démarrage</b> affiché, chaque tablette le scanne (Mon groupe).</li>
