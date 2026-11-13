@@ -55,6 +55,7 @@ function vAvatars(){
   if(!window.G26AV)return '';
   return `<section class="carte"><h3>Nos avatars</h3><div class="av-grp">${S.eleves.map((E,i)=>{const p=palierDe(E.nom),a=G26AV.de((S.av||{})[E.nom],E.nom);
     return `<button type="button" class="av-moi" data-act="atpav" data-v="${i}">${G26AV.svg(a,72)}<b>${esc(prenom(E.nom))}</b><small>${G26AV.ICO[p]} ${G26AV.NOMS[p]} · ${pts(E.nom)} pts</small><span class="bt mini">Changer</span></button>`}).join('')}</div>
+  <div class="rangee" style="margin-top:8px">${S.eleves.map((E,i)=>`<button type="button" class="bt mini" data-act="atpavqr" data-v="${i}">📷 Avatar de ${esc(prenom(E.nom))} → borne</button>`).join('')}</div>
   <p class="small muted" style="margin:6px 0 0">Ton avatar apparaît sur la borne quand tu joues. Plus tu marques de points au tournoi, plus tu débloques de personnages.</p></section>`;
 }
 function fenAvatars(i){
@@ -109,7 +110,7 @@ function vATP(){
   <p style="margin:10px 0 4px"><b>Qui sert en premier ?</b></p><div class="rangee"><button type="button" class="bt orange" data-act="atpgo" data-v="a">Joueur 1</button><button type="button" class="bt orange" data-act="atpgo" data-v="b">Joueur 2</button></div></section>`;
   const faits=M.filter(m=>m.fini);
   h+=`<section class="carte"><h3>Matchs saisis sur ce téléphone (${faits.length})</h3>${faits.length?`<table class="g6tab"><tr><th>Match</th><th>Score</th><th></th></tr>${faits.slice().reverse().map(m=>{const w=m.sa>m.sb?m.a:m.b,l=w===m.a?m.b:m.a;
-    return `<tr><td><b>${esc(prenom(w))}</b> bat ${esc(prenom(l))}<br><small class="muted">+${G26.atpGain(R[w],R[l])} / +${A.perdu}${m.arb?' · arbitre '+esc(prenom(m.arb)):''}</small></td><td>${Math.max(m.sa,m.sb)}-${Math.min(m.sa,m.sb)}</td><td>${g?(m.gr?'☁️':'⏳'):''}</td></tr>`}).join('')}</table>`:'<p class="small muted">Aucun pour l’instant.</p>'}
+    return `<tr><td><b>${esc(prenom(w))}</b> bat ${esc(prenom(l))}<br><small class="muted">+${G26.atpGain(R[w],R[l])} / +${A.perdu}${m.arb?' · arbitre '+esc(prenom(m.arb)):''}</small></td><td>${Math.max(m.sa,m.sb)}-${Math.min(m.sa,m.sb)}</td><td style="white-space:nowrap">${g?(m.gr?'☁️':'⏳'):''} <button type="button" class="bt mini" data-act="atpqr" data-v="${esc(m.id)}" title="QR à scanner à la borne">QR</button></td></tr>`}).join('')}</table>`:'<p class="small muted">Aucun pour l’instant.</p>'}
   ${g?`<p class="small muted" style="margin:8px 0 0">☁️ envoyé en direct au professeur · ⏳ en attente de réseau${att?` <button type="button" class="bt mini" data-act="atpenvoi">Réessayer (${att})</button>`:''}</p>`:'<p class="small muted" style="margin:8px 0 0">Les matchs partent avec la séance (onglet Envoyer).</p>'}</section>
   <section class="carte"><h3>Barème (règlement du tournoi)</h3><table class="g6tab"><tr><th>Victoire contre un joueur classé…</th><th>Points</th></tr>
   ${[5,4,3,2,1].map(k=>`<tr><td>${k===5?'5 rangs au-dessus et plus':k+' rang'+(k>1?'s':'')+' au-dessus'}</td><td>${A.dessus[k-1]}</td></tr>`).join('')}
@@ -153,7 +154,11 @@ EPLUS.clic=async function(a,v,b,ev){
     case 'atppt':{const m=M.find(x=>!x.fini);if(!m)return true;if(m.sa===10&&m.sb===10){m.dec=v}m['s'+v]++;m.h.push(v);modif();sauver();try{navigator.vibrate&&navigator.vibrate(20)}catch(e){}peindre();return true}
     case 'atpmoins':{const m=M.find(x=>!x.fini);if(!m||!m.h.length)return true;const c=m.h.pop();m['s'+c]--;if(m.dec)delete m.dec;modif();sauver();peindre();return true}
     case 'atpvalider':{const m=M.find(x=>!x.fini);if(!m)return true;m.fini=true;m.ts=Math.round(Date.now()/1000);delete m.h;
-      F={a:'',b:'',arb:''};MQ6=false;peindre();modif();sauver();rendre();toast('Match enregistré.');envoyer();return true}
+      F={a:'',b:'',arb:''};MQ6=false;peindre();modif();sauver();rendre();envoyer();montrerQRMatch(m);return true}
+    case 'atpqr':{const m=Object.values(S.atp||{}).flat().find(x=>x.id===v);if(m)montrerQRMatch(m);return true}
+    case 'atpavqr':{const E=S.eleves[+v];if(!E)return true;const id=G26AV.de((S.av||{})[E.nom],E.nom).id;
+      const txt=await chaineBrute({a:'TTE',v:1,t:'V',c:S.classe,e:E.nom,av:id,ts:Math.round(Date.now()/1000)});
+      fen(`<h3>Avatar de ${esc(prenom(E.nom))}</h3><div style="text-align:center">${G26AV.svg(G26AV.parId[id],96)}</div><p>Montre ce QR à la <b>borne</b> : ton avatar s’affichera dans le tableau.</p><div class="qrbox">${qrSvg(txt)}</div><div class="rangee" style="margin-top:10px"><button class="bt" type="button" data-act="fermer">Fait</button></div>`);return true}
     case 'atpenvoi':envoyer();toast('Envoi en cours…');return true;
     case 'atpav':fenAvatars(+v);return true;
     case 'atpavok':{const E=S.eleves[+b.dataset.i];if(!E)return true;S.av=S.av||{};S.av[E.nom]=v;modif();sauver();fermer();rendre();toast('Avatar choisi : '+G26AV.parId[v].n);return true}
@@ -163,6 +168,17 @@ EPLUS.clic=async function(a,v,b,ev){
 document.addEventListener('change',ev=>{const t=ev.target,k=t.dataset&&t.dataset.atp;if(!k||!S)return;F[k]=t.value;
   // le formulaire se met à jour sans perdre la saisie
   rendre();});
+
+/* ---------- QR d'un match, à scanner à la borne ---------- */
+async function montrerQRMatch(m){
+  // l'avatar de chaque joueur connu sur ce téléphone voyage avec le match
+  const av=n=>(S.av||{})[n]||'';const n=Object.keys(S.atp||{}).find(k=>(S.atp[k]||[]).includes(m))||S.seance;
+  const txt=await chaineBrute({a:'TTE',v:1,t:'A',c:S.classe,s:+n,d:today(),ts:Math.round(Date.now()/1000),m:[[m.id,m.a,m.b,m.arb||'',m.sa,m.sb,m.ts,m.av1||av(m.a),m.av2||av(m.b)]]});
+  const w=m.sa>m.sb?m.a:m.b;
+  fen(`<h3>🏓 ${esc(prenom(w))} gagne ${Math.max(m.sa,m.sb)}-${Math.min(m.sa,m.sb)}</h3>
+  <p>Va montrer ce QR à la <b>borne</b> : le classement se met à jour tout de suite.${gristDoc()?' <span class="small muted">(Il part aussi tout seul par internet : si la borne le lit, il n’est pas compté deux fois.)</span>':''}</p>
+  <div class="qrbox">${qrSvg(txt)}</div><div class="rangee" style="margin-top:10px"><button class="bt orange" type="button" data-act="fermer">Fait</button></div>`);
+}
 
 /* ---------- Export ---------- */
 function brut(n){return ((S.atp||{})[n]||[]).filter(m=>m.fini).map(m=>({id:m.id,a:m.a,b:m.b,arb:m.arb||'',sa:m.sa,sb:m.sb,ts:m.ts,d:m.d,av1:m.av1||'',av2:m.av2||''}))}
