@@ -119,7 +119,7 @@ function vSCE(){
   <section class="carte"><h3>Ordre des matchs</h3><table class="g6tab"><tr><th>#</th><th>Match (12 balles)</th><th>Observateurs</th></tr>
   ${t.m.map((m,mi)=>{const [a,b,oa,ob]=ROT[mi],s=scoreM(m),ici=mi===t.cur&&!fin;
     return `<tr class="${ici?'ici':''}"><td>${mi+1}</td><td><b>${esc(prenom(t.J[a]))}</b> – <b>${esc(prenom(t.J[b]))}</b>${finiM(m)?` <span class="fait">${s.a}-${s.b}${m.dec?' (pt décisif)':''} ✓</span>`:''}</td><td class="small">${esc(prenom(t.J[oa]))} → ${esc(prenom(t.J[a]))}<br>${esc(prenom(t.J[ob]))} → ${esc(prenom(t.J[b]))}</td></tr>`}).join('')}</table>
-  <p class="small muted" style="margin:8px 0 0">Au match suivant, chacun affronte celui qu’il vient d’observer.</p></section>`;
+  <p class="small muted" style="margin:8px 0 0">Chacun joue 2 matchs. À son 2e match, il affronte un joueur qu’il a observé.</p></section>`;
   if(fin)return h+vResultats(t);
   const mi=t.cur,m=t.m[mi],[ia,ib,oa,ob]=ROT[mi];
   if(m.etape===2)return h+vObserve(t,mi);
@@ -130,7 +130,7 @@ function vSCE(){
     const av=(m.av&&m.av[c])||{},vu=t.obs&&t.obs[p+'>'+adv];
     h+=`<div style="border-top:1px solid var(--trait);margin-top:10px;padding-top:8px"><h3 style="font-size:20px">${esc(t.J[p])} <span class="small muted" style="font-weight:400">contre ${esc(t.J[adv])}</span></h3>`;
     if(vu){
-      h+=`<p class="ok small" style="margin:0">✓ Tu as observé ${esc(prenom(t.J[adv]))} au match précédent : vérifie et corrige.</p>`;
+      h+=`<p class="ok small" style="margin:0">✓ Tu as observé ${esc(prenom(t.J[adv]))} : vérifie et corrige ses points faibles.</p>`;
       Object.entries(G26.faibles).forEach(([f,F])=>{h+=`<div class="g6k">${esc(F.n)}</div>${chips('g6fai',F.L,(av.f||{})[f],`data-c="${c}" data-f="${f}"`)}`});
     }else{
       h+=`<p class="small muted" style="margin:0">Tu ne l’as pas encore vu jouer : tu joues sur <b>tes points forts</b>.</p><div class="g6k">Mes points forts</div>${chips('g6for',G26.forts,av.fo,`data-c="${c}"`)}`;
@@ -164,7 +164,7 @@ function vNouvelleTable(){
 function vObserve(t,mi){
   const m=t.m[mi],[ia,ib,oa,ob]=ROT[mi],s=scoreM(m),w=gagnantM(m);
   let h=`<section class="carte"><h3>Fin du match ${mi+1} : ${esc(prenom(t.J[w==='a'?ia:ib]))} gagne ${Math.max(s.a,s.b)}-${Math.min(s.a,s.b)}${m.dec?' (point décisif)':''}</h3>
-  <p class="small muted">Les observateurs notent ce qu’ils ont repéré. Ça servira au joueur qui affrontera ce joueur au match suivant.</p>`;
+  <p class="small muted">Les observateurs notent ce qu’ils ont repéré. Ça servira à l’observateur quand il affrontera ce joueur, à son 2e match.</p>`;
   [[oa,ia,'a'],[ob,ib,'b']].forEach(([o,p,c])=>{
     const key=o+'>'+p,sel=(t.obs&&t.obs[key])||{},bm=bonusMatch(m,c);
     h+=`<div style="border-top:1px solid var(--trait);margin-top:10px;padding-top:8px"><h3 style="font-size:20px">${esc(prenom(t.J[o]))}, qu’as-tu repéré chez ${esc(prenom(t.J[p]))} ?</h3>
@@ -216,7 +216,7 @@ function peindreMarque(){
     h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${['a','b'].map(c=>`<button type="button" class="g6side${srv===c?' sert':''}${MK.pend===c?' choisi':''}" data-act="g6pt" data-v="${c}"><span class="nm">${esc(nom[c])}</span><span class="sc">${s[c]}</span>${srv===c?'<span class="sv">🏓 au service</span>':'<span class="sv">&nbsp;</span>'}</button>`).join('')}</div>`;
     if(MK.pend){const c=MK.pend,pj=m.av&&m.av[c]&&m.av[c].pj;
       h+=`<div style="background:#1b2533;border-radius:16px;padding:10px;margin-top:8px"><b>Point de ${esc(prenom(nom[c]))} : avec quel bonus ?</b>
-      <div class="g6bon">${G26.br.map(b=>`<button type="button" style="background:${b.col}" data-act="g6bonus" data-v="${b.k}">${b.ic} ${esc(b.n)}<small>${esc(b.def)}</small></button>`).join('')}<button type="button" class="no" data-act="g6bonus" data-v="-">Aucun bonus</button></div>
+      <div class="g6bon">${G26.br.filter(b=>b.k!=='R'||srv===c).map(b=>`<button type="button" style="background:${b.col}" data-act="g6bonus" data-v="${b.k}">${b.ic} ${esc(b.n)}<small>${esc(b.def)}</small></button>`).join('')}<button type="button" class="no" data-act="g6bonus" data-v="-">Aucun bonus</button></div>
       ${pj?`<p class="g6pj">🎯 Projet de ${esc(prenom(nom[c]))} : « ${esc(pj)} »</p>`:''}
       <p style="margin:8px 0 0"><button type="button" class="bt mini" data-act="g6pend">Annuler</button></p></div>`}
     else h+=`<p class="small" style="color:#9AA5B3;text-align:center;margin:10px 0">Touchez le côté du joueur qui marque. L’observateur de ce joueur annonce le bonus à voix haute.</p>
@@ -415,6 +415,7 @@ EPLUS.clic=async function(a,v,b,ev){
     case 'g6srp':{S.g6k=S.g6k||{};S.g6k[elv().id]=v;sauver();rendre();return true}
     case 'g6sgo':{const E=elv(),r=g6r(E),adv=$('#g6adv').value,obs=$('#g6ob').value,k=(S.g6k&&S.g6k[E.id])||choixDe(E.nom)[0]||'R';
       if(!adv){toast('Choisis ton adversaire.');return true}
+      if(obs&&obs===adv){toast('L’observateur ne peut pas être ton adversaire.');return true}
       S.g6sel={adv,obs};r.g26.srp.push({k,adv,obs,srv:v==='moi'?'a':'b',b:''});touche(r);sauver();SM={i:r.g26.srp.length-1};peindreSRP();return true}
     case 'g6sm':SM={i:+v};peindreSRP();return true;
     case 'g6smfermer':SM=null;peindreSRP();rendre();return true;

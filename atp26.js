@@ -135,7 +135,7 @@ function vATP(){
   const att=Object.values(S.atp||{}).flat().filter(m=>m.fini&&!m.gr).length;
   verifierDeblocage();
   let h=`<h2>Tournoi ATP · séance ${S.seance}</h2>${vAvatars()}
-  ${D?`<p class="small muted">Classement de départ : séance ${D.s}.</p>`:'<p class="avert small">Classement pas encore reçu du professeur : tout le monde part à égalité. Les matchs comptent quand même.</p>'}`;
+  ${D?(D.s===S.seance?`<p class="small muted">Classement de départ : séance ${D.s}.</p>`:`<p class="avert small">⚠ Ce téléphone a le classement de départ de la séance ${D.s}, pas celui d’aujourd’hui (séance ${S.seance}) : refais scanner le QR de la classe. Les points affichés ici peuvent être faux ; la borne fait foi.</p>`):'<p class="avert small">Classement pas encore reçu du professeur : tout le monde part à égalité. Les matchs comptent quand même.</p>'}`;
   if(gristDoc()&&(!LIVE||Date.now()-LIVE.t>15000))setTimeout(lireDirect,50);
   h+=vDirect();
   if(encours)h+=`<section class="carte"><h3>Match en cours</h3><p>${esc(encours.a)} – ${esc(encours.b)} : ${encours.sa}-${encours.sb}</p><button type="button" class="bt orange" data-act="atpmq">Reprendre le match</button></section>`;

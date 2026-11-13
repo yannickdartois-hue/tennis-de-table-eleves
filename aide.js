@@ -38,7 +38,7 @@ window.EPS_AIDE={appli:'Tennis de table · Élève',bouton:false,publics:[
 <li><b>STOM</b> : un atelier technique si un geste te bloque. Après l’atelier, <b>retourne en SRP</b>.</li></ol>
 <p class="astuce">C’est toi qui choisis ce que tu travailles, d’après ton polygone.</p>`},
 {t:'La SCE à la table de 4',html:`<ol><li>Onglet <b>SCE</b> : numéro de la SCE, numéro de la table, les 4 joueurs. <b>Un seul téléphone</b> pour la table.</li>
-<li>4 matchs de 12 balles, dans l’ordre affiché. Les deux autres observent. <b>Au match suivant, tu affrontes celui que tu viens d’observer.</b></li>
+<li>4 matchs de 12 balles, dans l’ordre affiché. Les deux autres observent. <b>Chacun joue 2 matchs : au 2e, tu affrontes un joueur que tu as observé.</b></li>
 <li>Avant le match : 1er match, tes <b>points forts</b> ; 2e match, les <b>points faibles</b> de ton adversaire (déjà cochés d’après ton observation). Puis ton <b>projet de jeu</b>.</li>
 <li>Pendant le match : on touche le côté du joueur qui marque, puis son bonus. L’observateur de ce joueur l’annonce à voix haute :
 <ul><li>⚡ <b>Rapide</b> : gagné en 2 frappes ou moins après son service ;</li><li>📐 <b>Architecte</b> : gagné sans toucher la zone centrale ;</li><li>💥 <b>KO</b> : gagné après avoir crié « PAN ! » ;</li><li>🎯 <b>Tactique</b> : gagné avec son projet de jeu.</li></ul></li>
