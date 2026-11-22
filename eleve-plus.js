@@ -133,7 +133,7 @@ function tempsMort(){
     <p class="small muted">Coach : pose 1 question, donne 1 seul conseil simple. « Où perd-il ses points ? Qu’est-ce qui marche pour toi ? »</p></div>`;
   clearInterval(TM);const fin=Date.now()+60000;
   TM=setInterval(()=>{const r=Math.max(0,Math.ceil((fin-Date.now())/1000)),e=document.getElementById('tm-t');if(e)e.textContent=Math.floor(r/60)+':'+String(r%60).padStart(2,'0');
-    if(!r){clearInterval(TM);sonner();}},250);
+    if(!r){clearInterval(TM);if(!SIF('reprise'))sonner();}},250);
 }
 function fermerTM(){clearInterval(TM);TM=null;const z=document.getElementById('tm');if(z)z.remove()}
 
@@ -152,8 +152,10 @@ function outilsFiche(t,n){
 }
 const dureeCh=d=>d>=60&&d%60===0?d/60+' min':duree(d);
 let CH=null; // {fin, reste, pause, total}
+/* v1.7 : coup de sifflet + vibration (eps-sifflet.js) : 1 coup au départ et à mi-temps, 3 à la fin ; false = sonnerie habituelle */
+const SIF=k=>{try{return !!(window.EPSSifflet&&EPSSifflet[k]())}catch(e){return false}};
 function chrono(sec){
-  CH={total:sec,fin:Date.now()+sec*1000,reste:sec*1000,pause:false};peindreChrono();
+  CH={total:sec,fin:Date.now()+sec*1000,reste:sec*1000,pause:false};SIF('depart');peindreChrono();
   clearInterval(CH.t);CH.t=setInterval(peindreChrono,250);
 }
 function peindreChrono(){
@@ -161,11 +163,12 @@ function peindreChrono(){
   if(!CH){if(z)z.remove();return}
   if(!z){z=document.createElement('div');z.id='chrono';document.body.appendChild(z)}
   const r=CH.pause?CH.reste:Math.max(0,CH.fin-Date.now()),s=Math.ceil(r/1000);
-  if(!CH.pause&&r<=0&&!CH.sonne){CH.sonne=true;sonner()}
+  if(!CH.pause&&r<=0&&!CH.sonne){CH.sonne=true;if(!SIF('fin'))sonner()}
+  if(!CH.pause&&CH.total>=60&&!CH.mi&&r>0&&r<=CH.total*500){CH.mi=true;SIF('mi')}
   z.className=s===0?'fini':s<=10?'bientot':'';
   // boutons construits une seule fois : redessinés 4 fois par seconde, un appui sur Pause pouvait se perdre
   if(!z.querySelector('.ch-t'))z.innerHTML=`<span class="ch-t"></span>
-    <button type="button" class="bt mini" data-act="chronoPause"></button><button type="button" class="bt mini" data-act="chronoRe" aria-label="Recommencer">↺</button><button type="button" class="bt mini" data-act="chronoFin" aria-label="Fermer le chrono">✕</button>`;
+    <button type="button" class="bt mini" data-act="chronoPause"></button><button type="button" class="bt mini" data-act="chronoRe" aria-label="Recommencer">↺</button><button type="button" class="bt mini" data-act="chronoFin" aria-label="Fermer le chrono">✕</button>${window.EPSSifflet?EPSSifflet.bouton():''}`;
   const tt=Math.floor(s/60)+':'+String(s%60).padStart(2,'0'),bp=z.querySelector('[data-act="chronoPause"]'),lp=CH.pause?'▶':'❚❚';
   if(z.querySelector('.ch-t').textContent!==tt)z.querySelector('.ch-t').textContent=tt;if(bp.textContent!==lp){bp.textContent=lp;bp.setAttribute('aria-label',CH.pause?'Reprendre':'Pause')}
 }
@@ -262,7 +265,7 @@ window.EPLUS={
       case 'tmfermer':fermerTM();return true;
       case 'reprendreCodes':{const E=elv(),r=rec(E.id,S.seance),t=codesEleve(E.nom,S.seance);if(!t)return true;
         r.grille=Object.assign(r.grille||{projet:''},{c0:t[0],c1:t[1],c2:t[2],c3:t[3],cx:t[4]});touche(r);sauver();rendre();toast('Grille du coach remplie.');return true}
-      case 'chrono':chrono(+v);return true;
+      case 'chrono':if(window.EPSSifflet)EPSSifflet.demander(()=>chrono(+v));else chrono(+v);return true;
       case 'chronoChoix':fen(`<h3>⏱ Chrono</h3><div class="rangee">${[30,60,90,120,180,300].map(d=>`<button type="button" class="bt" data-act="chronoGo" data-v="${d}">${duree(d)}</button>`).join('')}</div><div class="rangee" style="margin-top:12px"><button type="button" class="bt" data-act="fermer">Fermer</button></div>`);return true;
       case 'chronoGo':fermer();chrono(+v);return true;
       case 'chronoPause':if(CH){if(CH.pause){CH.fin=Date.now()+CH.reste;CH.pause=false}else{CH.reste=Math.max(0,CH.fin-Date.now());CH.pause=true}peindreChrono()}return true;
