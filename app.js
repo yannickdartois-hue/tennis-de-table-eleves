@@ -542,9 +542,9 @@ function historiqueEleve(E){
 }
 async function montrerTransfert(i){
   const E=S.eleves[i],txt=await chaineBrute(historiqueEleve(E));
-  let svg;try{svg=qrSvg(txt)}catch(e){svg='<p class="avert">Historique trop long pour un QR.</p>'}
-  fen(`<h3>${esc(E.nom)} change de groupe</h3><p class="small muted">Sur le téléphone de son nouveau groupe : Groupe → « Scanner le QR de l’élève qui arrive ».</p><div class="qrbox">${svg}</div>
+  fen(`<h3>${esc(E.nom)} change de groupe</h3><p class="small muted">Sur le téléphone de son nouveau groupe : Groupe → « Scanner le QR de l’élève qui arrive ».</p><div class="qrbox" id="tqr"></div><p class="small" id="tqn" style="text-align:center;font-weight:700"></p>
     <div class="rangee" style="margin-top:12px;justify-content:space-between"><button class="bt" type="button" data-act="fermer">Fermer</button><button class="bt danger" type="button" data-act="tretirer" data-v="${i}">C’est fait : retirer ${esc(E.nom.split(/\s+/)[0])} d’ici</button></div>`);
+  TTQR.anime($('#tqr'),TTQR.morceaux(txt),$('#tqn'));
 }
 function recevoirClasse(o){
   if(o.t!=='C')throw new Error('Ce n’est pas le QR de la classe.');
@@ -664,10 +664,10 @@ async function montrerQR(i){
     if(window.G26V)for(const q of await G26V.qrs(n))QRS.push(q);
   }
   const k=Math.max(0,Math.min(i,QRS.length-1)),Q=QRS[k];
-  let svg;try{svg=qrSvg(Q.txt)}catch(e){svg='<p class="avert">Trop de données pour un QR : utilise l’envoi en ligne.</p>'}
-  fen(`<h3>${esc(Q.titre)} · séance ${S.seance}</h3><p class="small muted">QR ${k+1} sur ${QRS.length}</p><div class="qrbox">${svg}</div>
+  fen(`<h3>${esc(Q.titre)} · séance ${S.seance}</h3><p class="small muted">QR ${k+1} sur ${QRS.length}</p><div class="qrbox" id="tqr"></div><p class="small" id="tqn" style="text-align:center;font-weight:700"></p>
     <div class="rangee" style="margin-top:12px;justify-content:space-between"><button class="bt" type="button" data-act="qrnav" data-v="${k-1}" ${k?'':'disabled'}>← Précédent</button>
     ${k<QRS.length-1?`<button class="bt noir" type="button" data-act="qrnav" data-v="${k+1}">Suivant →</button>`:`<button class="bt orange" type="button" data-act="qrfin">Terminé</button>`}</div>`);
+  TTQR.anime($('#tqr'),TTQR.morceaux(Q.txt),$('#tqn')); // v1.8 : morceaux de 750 caractères qui défilent
 }
 async function chaineBrute(q){ // même encodage que TTL.chaineQR, pour un objet déjà compact
   const raw=new TextEncoder().encode(JSON.stringify(q));
