@@ -111,7 +111,7 @@ function demanderCode(titre,texte,cb,creer){
     <input id="code" class="code" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="Code à 4 chiffres">
     <p id="code-msg" class="small" style="min-height:1.4em;font-weight:700;color:var(--alerte)"></p>
     <div class="rangee" style="justify-content:space-between"><button class="bt" type="button" data-act="fermer">Annuler</button><button class="bt noir" type="button" data-act="codeok">Valider</button></div>
-    ${creer?'<p class="small" style="margin-top:10px">✎ <b>Notez ce code</b> au dos de votre carnet ou dans votre agenda : sans lui, le carnet ne s’ouvre plus.</p>':'<p class="small" style="margin-top:12px"><button class="lien" type="button" data-act="codeoubli">Code oublié ?</button></p>'}`);
+    ${creer?'<p class="small" style="margin-top:10px">✎ <b>Notez ce code</b> au dos de votre carnet ou dans votre agenda : sans lui, le carnet ne s’ouvre plus.</p>':'<p class="small" style="margin-top:12px"><button class="lien" type="button" data-act="codeoubli" style="min-height:44px;font-weight:700">🔑 Code oublié ?</button></p>'}`);
   setTimeout(()=>{const i=$('#code');if(i)i.focus()},50);
 }
 async function validerCode(){
@@ -158,11 +158,11 @@ function vChoix(){
   const nom=g=>g.noms&&g.noms.length?g.noms.map(esc).join(' · '):'Groupe à compléter';
   const parC={};G.forEach(([id,g])=>(parC[g.classe||'Sans classe']=parC[g.classe||'Sans classe']||[]).push([id,g]));
   const C=Object.keys(ROOT.classes).sort();
-  return `<h2>Qui utilise la tablette ?</h2><p class="small muted">Chaque groupe ouvre son carnet avec son code secret.</p>
-  ${G.length?Object.entries(parC).map(([c,L])=>`<section class="carte"><h3>${esc(c)}</h3><div class="choix">${L.map(([id,g])=>{const ne=g.nonEnv&&g.nonEnv.length;return `<button type="button" class="bt grp${ne?' nonenv':''}" data-act="choisir" data-v="${id}">🔒 ${nom(g)}<small>${ne?'⚠ Séance '+g.nonEnv.join(', ')+' non envoyée':g.clair?'à protéger par un code':'code secret du groupe'}</small></button>`}).join('')}</div></section>`).join(''):'<p class="muted">Aucun groupe sur cette tablette.</p>'}
+  return `<h2>Ouvre le carnet de ton groupe</h2><p class="small muted">Chaque groupe ouvre son carnet avec son code secret.</p>
+  ${G.length?Object.entries(parC).map(([c,L])=>`<section class="carte"><h3>${esc(c)}</h3><div class="choix">${L.map(([id,g])=>{const ne=g.nonEnv&&g.nonEnv.length;return `<button type="button" class="bt grp${ne?' nonenv':''}" data-act="choisir" data-v="${id}">🔒 ${nom(g)}<small>${ne?'⚠ Séance '+g.nonEnv.join(', ')+' non envoyée':g.clair?'à protéger par un code':'code secret du groupe'}</small></button>`}).join('')}</div></section>`).join(''):'<p class="muted">Aucun groupe sur cet appareil.</p>'}
   <section class="carte"><h3>Nouveau groupe</h3>
-    ${C.length?`<p class="small muted">Classes déjà enregistrées sur la tablette :</p><div class="rangee">${C.map(c=>`<button type="button" class="bt" data-act="nouveau" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div><p class="small muted" style="margin-top:10px">Autre classe :</p>`:''}
-    <button type="button" class="bt orange" data-act="nouveauqr">Scanner le QR de la classe</button></section>`+(window.boutonDemo?boutonDemo():'');
+    ${C.length?`<p class="small muted">Classes déjà enregistrées sur cet appareil :</p><div class="rangee">${C.map(c=>`<button type="button" class="bt" data-act="nouveau" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div><p class="small muted" style="margin-top:10px">Autre classe :</p>`:''}
+    <button type="button" class="bt orange" data-act="nouveauqr" style="display:flex;width:100%;max-width:520px;justify-content:center;min-height:54px;font-size:18px">📷 Scanner le QR de la classe</button></section>`+(window.boutonDemo?boutonDemo():'');
 }
 function rendre(){
   document.querySelectorAll('.barre .bt').forEach(x=>x.hidden=!S);
