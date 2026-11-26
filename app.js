@@ -176,7 +176,7 @@ function rendre(){
   SE_FAITES=faites;
   $('#seances').innerHTML=g?`<b class="se-num">Séance ${S.seance}<small> / ${NB_SEANCES}</small></b>${faites.has(S.seance)?'<span class="se-fait">✓ faite</span>':''}<button type="button" id="btnSeance" class="se-bt" data-act="seancesListe" aria-label="Séance ${S.seance} sur ${NB_SEANCES} : changer de séance"></button>`:'';
   $('#seances').hidden=!g;
-  if(g)EPSSeances.bouton($('#btnSeance'),{cle:'tennis-de-table-eleves:seance',rang:S.seance-1,total:NB_SEANCES,texte:'<span aria-hidden="true">▾</span>'});
+  if(g)EPSSeances.bouton($('#btnSeance'),{cle:'tennis-de-table-eleves:seance',rang:S.seance-1,total:NB_SEANCES,texte:'S'+S.seance+' <span aria-hidden="true">▾</span>'});
   // qui saisit
   const G6=!!(window.G26V&&G26V.actif());
   if(G6&&['seance','etoile','progres'].includes(S.tab))S.tab='sce'; // parcours GAREEPS 2026 : pas d'étoile ni de séance « axes »
