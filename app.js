@@ -172,8 +172,11 @@ function rendre(){
   $('#sous').textContent=g?(S.classe?S.classe+' · ':'')+S.eleves.map(e=>e.nom.split(/\s+/)[0]).join(', '):'Crée ton groupe pour commencer';
   // séances
   const faites=new Set();S.eleves.forEach(e=>seancesDe(e.id).forEach(n=>{if(S.d[e.id][n].date)faites.add(n)}));Object.keys(S.poules).forEach(n=>faites.add(+n));
-  $('#seances').innerHTML=g?`<span class="lab">Séance</span><div class="strip">${[...Array(NB_SEANCES)].map((_,i)=>`<button type="button" data-act="seance" data-v="${i+1}" class="${S.seance===i+1?'ici':''} ${faites.has(i+1)?'fait':''}" aria-label="Séance ${i+1}">${i+1}</button>`).join('')}</div>`:'';
+  /* sélecteur de séance « piste » (26/11/2026) : séance en cours à gauche, bouton compact à droite ; la liste s'ouvre au toucher */
+  SE_FAITES=faites;
+  $('#seances').innerHTML=g?`<b class="se-num">Séance ${S.seance}<small> / ${NB_SEANCES}</small></b>${faites.has(S.seance)?'<span class="se-fait">✓ faite</span>':''}<button type="button" id="btnSeance" class="se-bt" data-act="seancesListe" aria-label="Séance ${S.seance} sur ${NB_SEANCES} : changer de séance"></button>`:'';
   $('#seances').hidden=!g;
+  if(g)EPSSeances.bouton($('#btnSeance'),{cle:'tennis-de-table-eleves:seance',rang:S.seance-1,total:NB_SEANCES,texte:'<span aria-hidden="true">▾</span>'});
   // qui saisit
   const G6=!!(window.G26V&&G26V.actif());
   if(G6&&['seance','etoile','progres'].includes(S.tab))S.tab='sce'; // parcours GAREEPS 2026 : pas d'étoile ni de séance « axes »
@@ -627,6 +630,15 @@ function pointMarque(c,d){
 }
 
 /* ---------- Fenêtres ---------- */
+/* liste des séances : grande piste (repères cliquables) + boutons S1…S9 */
+let SE_FAITES=new Set();
+function ouvrirSeances(){
+  const L=[...Array(NB_SEANCES)].map((_,i)=>({id:i+1,n:i+1,etat:SE_FAITES.has(i+1)?'fait':''}));
+  fen(`<h3>Changer de séance</h3><p class="small">Touche une séance sur la piste ou dans la liste · ✓ = faite</p>
+    ${EPSSeances.piste({rang:S.seance-1,seances:L,centre:'S'+S.seance+' / '+NB_SEANCES,attr:x=>`data-act="seance" data-v="${x.n}"`})}
+    <div class="se-grille">${L.map(x=>`<button type="button" data-act="seance" data-v="${x.n}" class="${x.n===S.seance?'ici':''} ${x.etat}" aria-label="Séance ${x.n}${x.etat?' (faite)':''}">S${x.n}${x.etat?' ✓':''}</button>`).join('')}</div>
+    <div class="rangee"><button type="button" class="bt" data-act="fermer">Fermer</button></div>`);
+}
 function fen(html,cl){$('#modal').innerHTML=`<div class="voile" data-act="fermerVoile"><div class="fen ${cl||''}" role="dialog" aria-modal="true">${html}</div></div>`}
 function fermer(){$('#modal').innerHTML='';PENDING=null;QRS=null}
 let toastT;function toast(t){clearTimeout(toastT);let d=$('.toast');if(!d){d=document.createElement('div');d.className='toast';document.body.appendChild(d)}d.textContent=t;toastT=setTimeout(()=>d.remove(),2600)}
@@ -720,7 +732,8 @@ document.addEventListener('click',async ev=>{
     case 'qrclasse':TTQR.scanner(async t=>recevoirClasse(await TTQR.decoder(t)),{titre:'QR de la classe',aide:'Scanne le QR affiché par le professeur.'});return;
     case 'tarrive':TTQR.scanner(async t=>accueillir(await TTQR.decoder(t)),{titre:'Élève qui arrive',aide:'Scanne le QR affiché sur le téléphone de son ancien groupe.'});return;
     case 'groupe':S.tab='groupe';break;
-    case 'seance':S.seance=+v;S.tour=1;QRS=null;S.jours=S.jours||{};S.jours[today()]=S.seance;break;
+    case 'seancesListe':ouvrirSeances();return;
+      case 'seance':$('#modal').innerHTML='';S.seance=+v;S.tour=1;QRS=null;S.jours=S.jours||{};S.jours[today()]=S.seance;break;
     case 'qui':S.cur=+v;break;
     case 'gvalider':{
       const cl=S.cfg?S.cfg.classe:$('#g-classe').value.trim(),L=[];
