@@ -279,9 +279,13 @@ function fiche(n){
 function pastilles(act,attrs,v){
   return `<div class="niv">${GA.deg.map((d,i)=>`<button type="button" data-act="${act}" ${attrs} data-v="${i+1}" class="${v===i+1?'on':''}" aria-pressed="${v===i+1}"><i class="p${i+1}"></i>${esc(d)}</button>`).join('')}</div>`;
 }
+/* « Passer aux saisies de … » (règle commune des applis en binôme / groupe, modèle demi-fond élève) */
+function iSuivEl(){const n=S&&S.eleves?S.eleves.length:0;return n>1?(S.cur+1)%n:-1}
+function barreTourS(bas){const i=iSuivEl();if(i<0)return '';const pn=e=>esc(String(e.nom||'').split(/\s+/)[0]||e.nom);
+  return `<div class="eltour t${'abcd'[S.cur%4]}${bas?' bas':''}"><span>✏️ Saisies de <b>${pn(elv())}</b></span><button type="button" data-act="tourS" data-v="${i}">Passer aux saisies de ${pn(S.eleves[i])} ▶</button></div>`}
 function vSeance(){
   const E=elv(),n=S.seance,r=rec(E.id,n);
-  let h=`<h2>Séance ${n} · ${esc(E.nom)}</h2>
+  let h=`<h2>Séance ${n} · ${esc(E.nom)}</h2>${barreTourS()}
   <label class="coche disp"><input type="checkbox" data-ch="disp" ${r.disp?'checked':''}> Aujourd’hui je suis dispensé(e)</label>
   ${r.disp?AVT('blesse','Dispensé(e) : tu travailles un rôle (coach, arbitrage) ou l’analyse, et tu arbitres en poule.'):'<p class="muted small">Tes 2 axes de travail, l’exercice choisi pour chacun, et le niveau atteint.</p>'}`;
   if(!r.axes[0]&&!r.axes[1]&&!derniereEtoile(E.id,n))h+=`<p class="avert">Commence par ton étoile (onglet Étoile) : elle te propose tes 2 axes les plus faibles.</p>`;
@@ -309,6 +313,7 @@ function vSeance(){
     <label class="ch" for="g15duo">Duo (échange long, routines)</label><textarea id="g15duo" data-ch="g15" data-k="duo" rows="2" placeholder="ex. 5 min de coup droit et revers en diagonale, puis services">${esc((r.g15||{}).duo||'')}</textarea>
     <label class="ch" for="g15duel">Duel (je me mets en situation de match)</label><textarea id="g15duel" data-ch="g15" data-k="duel" rows="2" placeholder="ex. 2 matchs en 5 points avec mon projet">${esc((r.g15||{}).duel||'')}</textarea></section>`;
   h+=`<section class="carte"><label class="ch" for="bilan">Bilan : ce que j’ai appris, ce que je travaille la prochaine fois</label><textarea id="bilan" data-ch="bilan">${esc(r.rq)}</textarea></section>`;
+  h+=barreTourS(true);
   return h;
 }
 
@@ -735,6 +740,7 @@ document.addEventListener('click',async ev=>{
     case 'seancesListe':ouvrirSeances();return;
       case 'seance':$('#modal').innerHTML='';S.seance=+v;S.tour=1;QRS=null;S.jours=S.jours||{};S.jours[today()]=S.seance;break;
     case 'qui':S.cur=+v;break;
+    case 'tourS':S.cur=+v;toast('✏️ Saisies de '+(String(S.eleves[S.cur].nom).split(/\s+/)[0]));setTimeout(()=>window.scrollTo(0,0),0);break;
     case 'gvalider':{
       const cl=S.cfg?S.cfg.classe:$('#g-classe').value.trim(),L=[];
       for(let i=0;i<3;i++){const inp=$('#g-e'+i),nom=inp.value.trim().replace(/\s+/g,' ');if(nom)L.push({id:inp.dataset.id||uid(),nom})}
@@ -849,4 +855,4 @@ rendre();
 if(window.EPSCode)EPSCode.eleve({app:'tte',qrApp:'TTE',scanner:v=>TTQR.scanner(async t=>{let o;try{o=await TTQR.decoder(t)}catch(e){throw new Error('Ce QR n’est pas un QR de cette appli. Demande le QR du jour à ton professeur.')}await v(o);return recevoirClasse(o)},{titre:'QR du jour',aide:'Scanne le QR affiché par le professeur : la séance s’ouvre.'}),
   classe:()=>S&&S.classe||'',seance:()=>S?String(S.seance):'',seances:()=>Array.from({length:NB_SEANCES},(_,i)=>String(i+1)),nom:s=>'Séance '+s,
   ouvrir:s=>{if(!S)return;S.seance=+s;S.jours=S.jours||{};S.jours[today()]=+s;S.tour=1;sauver();rendre()},
-  actif:()=>!!S&&['seance','etoile','poule','sce','srp','stom','atp'].includes(S.tab),libre:['qui','tour','video','tab','seance','fermer','fermerVoile','qrnav'],demo:()=>typeof DEMO!=='undefined'&&DEMO});
+  actif:()=>!!S&&['seance','etoile','poule','sce','srp','stom','atp'].includes(S.tab),libre:['qui','tourS','tour','video','tab','seance','fermer','fermerVoile','qrnav'],demo:()=>typeof DEMO!=='undefined'&&DEMO});

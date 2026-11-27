@@ -246,6 +246,12 @@ i.p1,i.p2,i.p3,i.p4{display:inline-grid;place-items:center;font:900 max(10px,var
 i.p1::after{content:"1";color:#fff}i.p2::after{content:"2";color:#000}i.p3::after{content:"3";color:#fff}i.p4::after{content:"4";color:#fff}
 .crit button i.p1::after,.crit button i.p2::after,.crit button i.p3::after,.crit button i.p4::after,.niv button i::after{font-size:15px}
 .baide{flex:0 0 auto;width:44px;min-width:44px;height:44px;padding:0!important;border-radius:50%!important;font-weight:900;font-size:19px;margin-left:auto}
+
+/* « Passer aux saisies de … » (règle commune des applis en binôme, modèle demi-fond élève) : une couleur par élève */
+.eltour{border-radius:14px;padding:8px 10px;color:#fff;margin:8px 0 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.eltour.bas{margin:16px 0 8px}.eltour.ta{background:#1d4ed8}.eltour.tb{background:#c2410c}.eltour.tc{background:#15803d}.eltour.td{background:#6d28d9}
+.eltour>span{font-size:16px}.eltour b{font-size:17px}
+.eltour button{background:#fff;color:#14181f;border:0;border-radius:12px;min-height:48px;padding:0 14px;font:inherit;font-weight:800;font-size:16px;cursor:pointer;flex:1 1 auto;max-width:100%}
 </style>
 <style>/* Lisibilité terrain : textes à 15 px minimum à l'écran ; tailles d'origine à l'impression. */@media print{:root{--fs-min:0px}}</style>
 <link rel="stylesheet" href="eps-charte-v1.css">
